@@ -1,0 +1,39 @@
+{
+  "common": {
+    "app_name": "WTF-Repo",
+    "loading": {
+      "default": "正在加载...",
+      "cursor": "正在加载更多... (用了游标分页，因为 SELECT COUNT(*) 真的会炸库)"
+    },
+    "errors": {
+      "default": "出错了，可能服务器心情不好。",
+      "network": "网络连接失败。你是不是拔网线了？",
+      "auth_required": "请先办理入院手续。"
+    },
+    "actions": {
+      "confirm": "确认",
+      "cancel": "取消",
+      "submit": "提交",
+      "login": "入院",
+      "logout": "出院"
+    }
+  },
+  "arena": {
+    "title": "鉴别诊断",
+    "vote": {
+      "confirm_a": "确诊 A",
+      "confirm_b": "确诊 B",
+      "cost": "消耗: {amount} {currency}"
+    },
+    "feedback": {
+      "win": "英雄所见略同。",
+      "loss": "真理掌握在少数人手中。"
+    }
+  },
+  "auth": {
+    "login_title": "病友登记处",
+    "login_subtitle": "出示您的医保卡（GitHub/Google）以进入病房。",
+    "github_login": "GitHub 入院",
+    "google_login": "Google 入院"
+  }
+}

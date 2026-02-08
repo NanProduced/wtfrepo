@@ -1,0 +1,39 @@
+{
+  "common": {
+    "app_name": "WTF-Repo",
+    "loading": {
+      "default": "Loading...",
+      "cursor": "Loading more... (Using cursor pagination because SELECT COUNT(*) kills the DB)"
+    },
+    "errors": {
+      "default": "Something went wrong.",
+      "network": "Network error. Did you unplug the internet?",
+      "auth_required": "Authentication required. Please check-in first."
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "submit": "Submit",
+      "login": "Check-in",
+      "logout": "Discharge"
+    }
+  },
+  "arena": {
+    "title": "Differential Diagnosis",
+    "vote": {
+      "confirm_a": "Diagnose A",
+      "confirm_b": "Diagnose B",
+      "cost": "Cost: {amount} {currency}"
+    },
+    "feedback": {
+      "win": "Great minds think alike.",
+      "loss": "You are the 1%."
+    }
+  },
+  "auth": {
+    "login_title": "Patient Check-in",
+    "login_subtitle": "Show your ID card to enter the asylum.",
+    "github_login": "Login with GitHub",
+    "google_login": "Login with Google"
+  }
+}

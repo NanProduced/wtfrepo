@@ -27,8 +27,7 @@
   },
   "lint-staged": {
     "frontend/**/*.{js,jsx,ts,tsx}": [
-      "cd frontend && npm run lint",
-      "npx --no -- prettier --write"
+      "npm --prefix frontend run lint"
     ],
     "backend/**/*.java": [
       "echo \"Java formatting skipped (Spotless not configured yet)\""
