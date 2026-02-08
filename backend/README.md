@@ -36,3 +36,5 @@ WTF-Repo 后端服务，提供核心业务 API、排行榜计算、Bug 经济、
 ## 文档与需求
 
 需求与设计文档位于仓库 `local-docs/`，请从 `local-docs/00-Index.md` 开始阅读。
+
+私有规范与专有说明位于 `backend/.docs/`（不纳入 Git）。

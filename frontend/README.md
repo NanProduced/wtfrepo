@@ -36,3 +36,5 @@ npm run dev
 ## 文档与需求
 
 需求与设计文档位于仓库 `local-docs/`，请从 `local-docs/00-Index.md` 开始阅读。
+
+私有规范与专有说明位于 `frontend/.docs/`（不纳入 Git）。

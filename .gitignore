@@ -4,6 +4,7 @@
 /httpRequests/
 /dataSources/
 /dataSources.local.xml
+/.husky/_/
 
 # OS / editor
 .DS_Store
@@ -57,8 +58,10 @@ Thumbs.db
 **/*.tsbuildinfo
 **/next-env.d.ts
 
-# local-docs (do not commit)
+# local-docs (private, do not commit)
 /local-docs/
+/backend/.docs/
+/frontend/.docs/
 
 # env
 .env
@@ -67,4 +70,3 @@ Thumbs.db
 # AI / MCP tools dir
 **/.serena/
 **/.gemini/
-
