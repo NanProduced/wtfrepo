@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: wtfrepo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wtfrepo
+      POSTGRES_USER: wtfrepo
+      POSTGRES_PASSWORD: wtfrepo
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - wtfrepo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wtfrepo -d wtfrepo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: wtfrepo-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - wtfrepo-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  wtfrepo-postgres-data:
+  wtfrepo-redis-data:

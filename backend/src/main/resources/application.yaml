@@ -1,3 +1,44 @@
 spring:
   application:
     name: backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/wtfrepo}
+    username: ${DB_USERNAME:wtfrepo}
+    password: ${DB_PASSWORD:wtfrepo}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+app:
+  auth:
+    identity-proof:
+      issuer: ${AUTH_IDENTITY_PROOF_ISSUER:wtf-repo-bff}
+      audience: ${AUTH_IDENTITY_PROOF_AUDIENCE:wtf-repo-backend-auth-exchange}
+      secret: ${AUTH_IDENTITY_PROOF_SECRET:change-this-identity-proof-secret-change-this}
+      clock-skew: ${AUTH_IDENTITY_PROOF_CLOCK_SKEW:60s}
+      max-ttl: ${AUTH_IDENTITY_PROOF_MAX_TTL:5m}
+    economy:
+      # TODO(M03-economy): replace with economy module source of truth and multiplier policy.
+      initial-bug-grant: ${AUTH_INITIAL_BUG_GRANT:5}
+    contract:
+      oauth-state-ttl: 10m
+      exchange-idempotency-ttl: 10m
+      forbidden-username-keywords:
+        - admin
+        - manager
+        - root
+    rate-limit:
+      exchange-limit: 30
+      exchange-window: 1m
+      rename-limit: 10
+      rename-window: 1m
+  security:
+    token:
+      secret: change-this-in-prod-change-this-in-prod
+      issuer: wtf-repo-backend
+      ttl: 1h
