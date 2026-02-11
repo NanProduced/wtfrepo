@@ -31,20 +31,21 @@ public class JpaAuthExchangeIdempotencyStore implements AuthExchangeIdempotencyS
 
   @Override
   @Transactional
-  public Optional<StoredExchangeResult> find(String requestId) {
+  public Optional<StoredExchangeResult> find(String idempotencyKey) {
     // Best-effort cleanup keeps idempotency table bounded by configured TTL.
     repository.deleteByCreatedAtBefore(
         Instant.now().minus(authContractProperties.getExchangeIdempotencyTtl()));
 
-    return repository.findById(requestId).map(this::toExchangeResult);
+    return repository.findById(idempotencyKey).map(this::toExchangeResult);
   }
 
   @Override
   @Transactional
-  public void save(String requestId, String requestFingerprint, AuthService.ExchangeResult result) {
+  public void save(
+      String idempotencyKey, String requestFingerprint, AuthService.ExchangeResult result) {
     AuthExchangeIdempotencyJpaEntity entity =
         AuthExchangeIdempotencyJpaEntity.of(
-            requestId,
+            idempotencyKey,
             requestFingerprint,
             result.issuedToken().accessToken(),
             result.issuedToken().expiresIn(),

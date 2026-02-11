@@ -56,11 +56,12 @@ public class AuthService {
   /**
    * Exchanges BFF identity proof for backend access token.
    *
-   * <p>Key responsibilities: verify proof, enforce rate-limit, apply request-id idempotency,
+   * <p>Key responsibilities: verify proof, enforce rate-limit, apply idempotency-key replay,
    * consume oauthState once, load/create user, and issue backend token.
    */
   @Transactional
-  public ExchangeResult exchange(AuthExchangeRequest request, String requestId) {
+  public ExchangeResult exchange(
+      AuthExchangeRequest request, String requestId, String idempotencyKey) {
     String providerSubject =
         oAuthIdentityVerifier.verifyAndResolveSubject(request.provider(), request.identityProof());
     String rateLimitKey = request.provider().name() + ":" + providerSubject;
@@ -70,14 +71,15 @@ public class AuthService {
 
     String requestFingerprint = requestFingerprintCalculator.fingerprint(request);
     Optional<AuthExchangeIdempotencyStore.StoredExchangeResult> existing =
-        authExchangeIdempotencyStore.find(requestId);
+        authExchangeIdempotencyStore.find(idempotencyKey);
     if (existing.isPresent()) {
       if (!existing.get().requestFingerprint().equals(requestFingerprint)) {
         throw AuthExceptions.conflict(AuthConstants.Message.IDEMPOTENCY_CONFLICT);
       }
-      log.info(
-          "auth_exchange_idempotent_hit requestId={} userId={}",
+      log.debug(
+          "auth_exchange_idempotent_hit requestId={} idempotencyKey={} userId={}",
           requestId,
+          idempotencyKey,
           existing.get().result().authUser().userId());
       return existing.get().result();
     }
@@ -92,8 +94,9 @@ public class AuthService {
     IssuedToken issuedToken = tokenService.issueToken(userRecord.toAuthUser());
 
     log.info(
-        "auth_exchange_success requestId={} userId={} provider={} isNewUser={}",
+        "auth_exchange_success requestId={} idempotencyKey={} userId={} provider={} isNewUser={}",
         requestId,
+        idempotencyKey,
         userRecord.userId(),
         userRecord.provider(),
         userRecord.isNewUser());
@@ -104,7 +107,7 @@ public class AuthService {
         userRecord.isNewUser(),
         userRecord.isNewUser() ? authEconomyBridge.initialBugGrantForNewUser() : 0);
 
-    authExchangeIdempotencyStore.save(requestId, requestFingerprint, result);
+    authExchangeIdempotencyStore.save(idempotencyKey, requestFingerprint, result);
     return result;
   }
 

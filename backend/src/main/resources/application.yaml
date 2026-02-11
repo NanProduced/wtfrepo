@@ -37,8 +37,16 @@ app:
       exchange-window: 1m
       rename-limit: 10
       rename-window: 1m
+  specimen:
+    contract:
+      watchlist-max-items: 200
+      watchlist-default-limit: 20
+      watchlist-max-limit: 50
+      admin-idempotency-ttl: 24h
+      tag-config-version: tagcfg_2026_02_10_01
   security:
     token:
       secret: change-this-in-prod-change-this-in-prod
       issuer: wtf-repo-backend
       ttl: 1h
+

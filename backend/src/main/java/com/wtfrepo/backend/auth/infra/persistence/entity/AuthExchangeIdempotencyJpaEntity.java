@@ -17,10 +17,10 @@ import lombok.Getter;
 @Table(name = "auth_exchange_idempotency")
 public class AuthExchangeIdempotencyJpaEntity {
 
-  /** Idempotency key from request header (`X-Request-Id`). */
+  /** Idempotency key from `X-Idempotency-Key` (fallback: `X-Request-Id`). */
   @Id
-  @Column(name = "request_id", nullable = false, length = 128)
-  private String requestId;
+  @Column(name = "idempotency_key", nullable = false, length = 128)
+  private String idempotencyKey;
 
   /** Deterministic fingerprint of exchange payload for conflict detection. */
   @Column(name = "request_fingerprint", nullable = false, length = 64)
@@ -69,7 +69,7 @@ public class AuthExchangeIdempotencyJpaEntity {
   protected AuthExchangeIdempotencyJpaEntity() {}
 
   public static AuthExchangeIdempotencyJpaEntity of(
-      String requestId,
+      String idempotencyKey,
       String requestFingerprint,
       String accessToken,
       long tokenExpiresIn,
@@ -81,7 +81,7 @@ public class AuthExchangeIdempotencyJpaEntity {
       boolean isNewUser,
       int initialBugGrant) {
     AuthExchangeIdempotencyJpaEntity entity = new AuthExchangeIdempotencyJpaEntity();
-    entity.requestId = requestId;
+    entity.idempotencyKey = idempotencyKey;
     entity.requestFingerprint = requestFingerprint;
     entity.accessToken = accessToken;
     entity.tokenExpiresIn = tokenExpiresIn;

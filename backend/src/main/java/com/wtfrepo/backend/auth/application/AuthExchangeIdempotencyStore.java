@@ -4,9 +4,9 @@ import java.util.Optional;
 
 public interface AuthExchangeIdempotencyStore {
 
-  Optional<StoredExchangeResult> find(String requestId);
+  Optional<StoredExchangeResult> find(String idempotencyKey);
 
-  void save(String requestId, String requestFingerprint, AuthService.ExchangeResult result);
+  void save(String idempotencyKey, String requestFingerprint, AuthService.ExchangeResult result);
 
   record StoredExchangeResult(String requestFingerprint, AuthService.ExchangeResult result) {}
 }

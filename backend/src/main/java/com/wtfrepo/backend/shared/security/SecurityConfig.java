@@ -1,6 +1,6 @@
 package com.wtfrepo.backend.shared.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wtfrepo.backend.shared.json.JsonUtils;
 import com.wtfrepo.backend.shared.web.ApiErrorResponse;
 import com.wtfrepo.backend.shared.web.ErrorCode;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
@@ -24,13 +24,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 @Configuration
 @EnableConfigurationProperties(SecurityTokenProperties.class)
 public class SecurityConfig {
 
+  private static final String FALLBACK_ERROR_JSON =
+      "{\"code\":\"INTERNAL_ERROR\",\"message\":\"Internal server error\"}";
+
   @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper)
+  SecurityFilterChain securityFilterChain(HttpSecurity http, JsonUtils jsonUtils)
       throws Exception {
     http
         .csrf(AbstractHttpConfigurer::disable)
@@ -44,6 +48,12 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/v1/me/**")
                     .authenticated()
+                    .requestMatchers("/api/v1/watchlist/**")
+                    .authenticated()
+                    .requestMatchers("/api/v1/admin/**")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/specimens/*/hype")
+                    .authenticated()
                     .anyRequest()
                     .permitAll())
         .exceptionHandling(
@@ -56,7 +66,7 @@ public class SecurityConfig {
                                 HttpStatus.UNAUTHORIZED,
                                 ErrorCode.UNAUTHORIZED,
                                 "Authentication required",
-                                objectMapper))
+                                jsonUtils))
                     .accessDeniedHandler(
                         (request, response, accessDeniedException) ->
                             writeError(
@@ -65,7 +75,7 @@ public class SecurityConfig {
                                 HttpStatus.FORBIDDEN,
                                 ErrorCode.FORBIDDEN,
                                 "Access denied",
-                                objectMapper)))
+                                jsonUtils)))
         .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
 
     return http.build();
@@ -87,7 +97,7 @@ public class SecurityConfig {
       HttpStatus httpStatus,
       ErrorCode errorCode,
       String message,
-      ObjectMapper objectMapper)
+      JsonUtils jsonUtils)
       throws IOException {
     ApiErrorResponse body =
         ApiErrorResponse.of(
@@ -102,7 +112,11 @@ public class SecurityConfig {
 
     response.setStatus(httpStatus.value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    objectMapper.writeValue(response.getWriter(), body);
+    try {
+      response.getWriter().write(jsonUtils.toJson(body));
+    } catch (JsonProcessingException ex) {
+      response.getWriter().write(FALLBACK_ERROR_JSON);
+    }
   }
 
   private String requestId(HttpServletRequest request) {
@@ -110,3 +124,4 @@ public class SecurityConfig {
     return attr != null ? String.valueOf(attr) : null;
   }
 }
+

@@ -15,6 +15,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.wtfrepo.backend.BackendApplication;
+import com.wtfrepo.backend.auth.application.support.AuthConstants;
 import com.wtfrepo.backend.auth.domain.OAuthProvider;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
 import java.time.Instant;
@@ -77,6 +78,47 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.tokenType").value("Bearer"))
         .andExpect(jsonPath("$.user.userId").isNotEmpty())
         .andExpect(jsonPath("$.user.roles[0]").value("USER"));
+  }
+
+  @Test
+  void exchangeShouldBeIdempotentByExplicitIdempotencyKey() throws Exception {
+    String proof = buildIdentityProof(OAuthProvider.GITHUB, "gh-sub-idem-header", "jti-idem-header");
+    AuthExchangeRequest request =
+        new AuthExchangeRequest(
+            OAuthProvider.GITHUB,
+            proof,
+            "state-idem-header",
+            new AuthExchangeRequest.Profile("nan", "https://avatar"));
+
+    String firstBody =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/exchange")
+                    .header(RequestIdConstants.HEADER_NAME, "req-idem-header-1")
+                    .header(AuthConstants.Header.IDEMPOTENCY_KEY, "idem-exchange-1")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String secondBody =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/exchange")
+                    .header(RequestIdConstants.HEADER_NAME, "req-idem-header-2")
+                    .header(AuthConstants.Header.IDEMPOTENCY_KEY, "idem-exchange-1")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String firstToken = objectMapper.readTree(firstBody).path("accessToken").asText();
+    String secondToken = objectMapper.readTree(secondBody).path("accessToken").asText();
+    org.assertj.core.api.Assertions.assertThat(secondToken).isEqualTo(firstToken);
   }
 
   @Test
@@ -218,6 +260,46 @@ class AuthControllerTest {
         .perform(
             post("/api/v1/auth/exchange")
                 .header(RequestIdConstants.HEADER_NAME, "req-idem-conflict")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(second)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("CONFLICT"));
+  }
+
+  @Test
+  void exchangeShouldRejectIdempotencyConflictForSameIdempotencyKey() throws Exception {
+    String firstProof =
+        buildIdentityProof(OAuthProvider.GITHUB, "gh-sub-header-conflict-1", "jti-header-conflict-1");
+    String secondProof =
+        buildIdentityProof(OAuthProvider.GITHUB, "gh-sub-header-conflict-2", "jti-header-conflict-2");
+    AuthExchangeRequest first =
+        new AuthExchangeRequest(
+            OAuthProvider.GITHUB,
+            firstProof,
+            "state-header-conflict-1",
+            new AuthExchangeRequest.Profile("nan", "https://avatar"));
+
+    AuthExchangeRequest second =
+        new AuthExchangeRequest(
+            OAuthProvider.GITHUB,
+            secondProof,
+            "state-header-conflict-2",
+            new AuthExchangeRequest.Profile("nan", "https://avatar"));
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/exchange")
+                .header(RequestIdConstants.HEADER_NAME, "req-header-conflict-1")
+                .header(AuthConstants.Header.IDEMPOTENCY_KEY, "idem-conflict-header")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(first)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/exchange")
+                .header(RequestIdConstants.HEADER_NAME, "req-header-conflict-2")
+                .header(AuthConstants.Header.IDEMPOTENCY_KEY, "idem-conflict-header")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(second)))
         .andExpect(status().isConflict())

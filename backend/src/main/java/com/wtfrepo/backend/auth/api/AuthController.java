@@ -1,12 +1,14 @@
 package com.wtfrepo.backend.auth.api;
 
 import com.wtfrepo.backend.auth.application.AuthService;
+import com.wtfrepo.backend.auth.application.support.AuthConstants;
 import com.wtfrepo.backend.auth.domain.AuthUser;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -31,8 +33,11 @@ public class AuthController {
   // BFF-only endpoint: exchanges upstream OAuth proof for backend access token.
   public ResponseEntity<AuthExchangeResponse> exchange(
       @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
+      @RequestHeader(name = AuthConstants.Header.IDEMPOTENCY_KEY, required = false)
+          String idempotencyKey,
       @Valid @RequestBody AuthExchangeRequest request) {
-    var result = authService.exchange(request, requestId);
+    String resolvedIdempotencyKey = resolveIdempotencyKey(requestId, idempotencyKey);
+    var result = authService.exchange(request, requestId, resolvedIdempotencyKey);
     return ResponseEntity.ok(AuthExchangeResponse.from(result));
   }
 
@@ -51,5 +56,12 @@ public class AuthController {
       @Valid @RequestBody RenameUsernameRequest request) {
     AuthUser user = authService.rename(jwt.getSubject(), request.username(), requestId);
     return ResponseEntity.ok(RenameUsernameResponse.from(user));
+  }
+
+  private String resolveIdempotencyKey(String requestId, String idempotencyKey) {
+    if (StringUtils.hasText(idempotencyKey)) {
+      return idempotencyKey.trim();
+    }
+    return requestId;
   }
 }

@@ -14,6 +14,13 @@ public final class AuthConstants {
     private IdentityProof() {}
   }
 
+  public static final class Header {
+
+    public static final String IDEMPOTENCY_KEY = "X-Idempotency-Key";
+
+    private Header() {}
+  }
+
   public static final class Username {
 
     public static final String PREFIX = "patient_";
