@@ -177,7 +177,9 @@ public class AuthService {
   private AuthUserRecord createUser(
       OAuthProvider provider, String providerSubject) {
     String username = generateUniqueUsername();
-    return authUserStore.saveNewUser(provider, providerSubject, username);
+    // TODO(M03-economy): align bootstrap grant with economy source-of-truth policy publishing.
+    return authUserStore.saveNewUser(
+        provider, providerSubject, username, authEconomyBridge.initialBugGrantForNewUser());
   }
 
   /**

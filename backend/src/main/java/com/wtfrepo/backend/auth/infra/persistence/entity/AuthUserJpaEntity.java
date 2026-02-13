@@ -33,7 +33,12 @@ public class AuthUserJpaEntity {
   @Column(name = "username_changed", nullable = false)
   private boolean usernameChanged;
 
-  /** Bug balance snapshot owned by auth-facing user profile. */
+  /**
+   * Bug balance snapshot returned by auth-facing profile APIs.
+   *
+   * <p>TODO(M03-economy): migrate ownership to economy wallet source-of-truth; keep this field as
+   * read projection only until dedicated economy module is fully integrated.
+   */
   @Column(name = "bug_balance", nullable = false)
   private long bugBalance;
 

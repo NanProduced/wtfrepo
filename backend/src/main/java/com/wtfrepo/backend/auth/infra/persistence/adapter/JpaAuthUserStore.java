@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaAuthUserStore implements AuthUserStore {
 
-  private static final long INITIAL_BUG_BALANCE = 5L;
-
   private final AuthUserJpaRepository authUserJpaRepository;
   private final AuthIdentityJpaRepository authIdentityJpaRepository;
 
@@ -53,7 +51,11 @@ public class JpaAuthUserStore implements AuthUserStore {
 
   @Override
   @Transactional
-  public AuthUserRecord saveNewUser(OAuthProvider provider, String providerSubject, String username) {
+  public AuthUserRecord saveNewUser(
+      OAuthProvider provider,
+      String providerSubject,
+      String username,
+      long initialBugBalance) {
     // Ensure first-login side effect is idempotent on (provider, providerSubject).
     Optional<AuthIdentityJpaEntity> existingIdentity =
         authIdentityJpaRepository.findByProviderAndProviderSubject(provider, providerSubject);
@@ -64,7 +66,7 @@ public class JpaAuthUserStore implements AuthUserStore {
     }
 
     String userId = "u_" + UUID.randomUUID();
-    AuthUserJpaEntity user = AuthUserJpaEntity.create(userId, username, INITIAL_BUG_BALANCE);
+    AuthUserJpaEntity user = AuthUserJpaEntity.create(userId, username, initialBugBalance);
     AuthIdentityJpaEntity identity = AuthIdentityJpaEntity.create(userId, provider, providerSubject);
 
     try {

@@ -11,8 +11,8 @@ public interface AuthUserStore {
 
   boolean usernameExists(String username);
 
-  AuthUserRecord saveNewUser(OAuthProvider provider, String providerSubject, String username);
+  AuthUserRecord saveNewUser(
+      OAuthProvider provider, String providerSubject, String username, long initialBugBalance);
 
   AuthUserRecord updateUsername(String userId, String newUsername);
 }
-

@@ -40,6 +40,7 @@ import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenOfficia
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenReadmeExcerptJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenRepoIdentityJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenTagJpaRepository;
+import com.wtfrepo.backend.shared.policy.ArenaRuntimePolicyPort;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -74,6 +75,7 @@ public class SpecimenAdminService {
   private final SpecimenRepoIdentityJpaRepository specimenRepoIdentityJpaRepository;
   private final SpecimenAdminActionIdempotencyJpaRepository specimenAdminActionIdempotencyJpaRepository;
   private final SpecimenContractProperties specimenContractProperties;
+  private final ArenaRuntimePolicyPort arenaRuntimePolicyPort;
   private final SpecimenRequestFingerprintCalculator specimenRequestFingerprintCalculator;
   private final SpecimenJsonCodec specimenJsonCodec;
 
@@ -88,6 +90,7 @@ public class SpecimenAdminService {
       SpecimenRepoIdentityJpaRepository specimenRepoIdentityJpaRepository,
       SpecimenAdminActionIdempotencyJpaRepository specimenAdminActionIdempotencyJpaRepository,
       SpecimenContractProperties specimenContractProperties,
+      ArenaRuntimePolicyPort arenaRuntimePolicyPort,
       SpecimenRequestFingerprintCalculator specimenRequestFingerprintCalculator,
       SpecimenJsonCodec specimenJsonCodec) {
     this.specimenJpaRepository = specimenJpaRepository;
@@ -100,6 +103,7 @@ public class SpecimenAdminService {
     this.specimenRepoIdentityJpaRepository = specimenRepoIdentityJpaRepository;
     this.specimenAdminActionIdempotencyJpaRepository = specimenAdminActionIdempotencyJpaRepository;
     this.specimenContractProperties = specimenContractProperties;
+    this.arenaRuntimePolicyPort = arenaRuntimePolicyPort;
     this.specimenRequestFingerprintCalculator = specimenRequestFingerprintCalculator;
     this.specimenJsonCodec = specimenJsonCodec;
   }
@@ -124,7 +128,10 @@ public class SpecimenAdminService {
             "https://github.com/" + parsedGithubUrl.owner() + "/" + parsedGithubUrl.repo());
     specimenJpaRepository.save(specimen);
     // TODO(M01-arena): initialize metrics via arena-owned service after module boundary is settled.
-    specimenArenaMetricsJpaRepository.save(SpecimenArenaMetricsJpaEntity.createDefault(specimenId));
+    specimenArenaMetricsJpaRepository.save(
+        SpecimenArenaMetricsJpaEntity.createDefault(
+            specimenId,
+            arenaRuntimePolicyPort.currentArenaRuntimePolicy().initialElo()));
 
     SpecimenGithubMetadataJpaEntity metadata =
         SpecimenGithubMetadataJpaEntity.createDraft(

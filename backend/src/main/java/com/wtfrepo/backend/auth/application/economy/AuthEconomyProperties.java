@@ -15,8 +15,10 @@ import org.springframework.stereotype.Component;
 public class AuthEconomyProperties {
 
   /**
-   * Temporary default for MVP.
-   * TODO(M03-economy): source this from economy module and multiplier policy.
+   * Temporary bootstrap grant before M03 economy module is fully integrated.
+   *
+   * <p>TODO(M03-economy): source this from unified economy policy publishing (DB + admin), then
+   * remove auth-local property ownership.
    */
-  private int initialBugGrant = 5;
+  private int initialBugGrant;
 }

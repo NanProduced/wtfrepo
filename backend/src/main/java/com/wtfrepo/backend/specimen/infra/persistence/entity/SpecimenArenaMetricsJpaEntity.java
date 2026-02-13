@@ -49,14 +49,21 @@ public class SpecimenArenaMetricsJpaEntity {
 
   protected SpecimenArenaMetricsJpaEntity() {}
 
-  public static SpecimenArenaMetricsJpaEntity createDefault(String specimenId) {
+  public static SpecimenArenaMetricsJpaEntity createDefault(String specimenId, int defaultElo) {
     SpecimenArenaMetricsJpaEntity entity = new SpecimenArenaMetricsJpaEntity();
     entity.specimenId = specimenId;
-    entity.elo = 1200;
+    entity.elo = defaultElo;
     entity.hype = 0.0D;
     entity.votes = 0L;
     entity.delta24h = 0;
     entity.updatedAt = Instant.now();
     return entity;
+  }
+
+  public void applyArenaVoteDelta(int eloDelta) {
+    this.elo += eloDelta;
+    this.votes += 1;
+    this.delta24h += eloDelta;
+    this.updatedAt = Instant.now();
   }
 }
