@@ -2,15 +2,20 @@ package com.wtfrepo.backend.arena.infra.support;
 
 import com.wtfrepo.backend.arena.application.ArenaVoteIdempotencyStore;
 import com.wtfrepo.backend.arena.application.ArenaVoteService;
+import com.wtfrepo.backend.arena.infra.persistence.repository.BattleVoteJpaRepository;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.stereotype.Component;
 
 /**
  * In-memory vote idempotency store kept for unit tests.
  *
  * <p>Production path should use {@code JpaArenaVoteIdempotencyStore}.
  */
+@Component
+@ConditionalOnMissingBean(BattleVoteJpaRepository.class)
 public class InMemoryArenaVoteIdempotencyStore implements ArenaVoteIdempotencyStore {
 
   private final Map<String, StoredVoteResult> store = new ConcurrentHashMap<>();

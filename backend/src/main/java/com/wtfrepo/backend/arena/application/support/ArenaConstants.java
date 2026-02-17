@@ -31,6 +31,7 @@ public final class ArenaConstants {
   public static final class Message {
 
     public static final String AUTH_REQUIRED = "Authentication required";
+    public static final String FORBIDDEN_ADMIN = "Admin role required";
     public static final String VOTE_INVALID_WINNER = "winner must be LEFT, RIGHT, or BOTH_BAD";
     public static final String BATTLE_NOT_FOUND = "Battle id signature is invalid";
     public static final String BATTLE_EXPIRED = "Battle id expired";

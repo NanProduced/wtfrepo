@@ -13,6 +13,10 @@ public final class ArenaExceptions {
     return new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, message);
   }
 
+  public static ApiException forbidden(String message) {
+    return new ApiException(ErrorCode.FORBIDDEN, HttpStatus.FORBIDDEN, message);
+  }
+
   public static ApiException invalidWinner(String message) {
     return new ApiException(ErrorCode.VOTE_INVALID_WINNER, HttpStatus.BAD_REQUEST, message);
   }

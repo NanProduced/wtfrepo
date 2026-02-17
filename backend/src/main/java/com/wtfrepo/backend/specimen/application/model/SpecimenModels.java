@@ -90,6 +90,8 @@ public final class SpecimenModels {
 
   public record SubmitResult(String specimenId, SpecimenStatus status) {}
 
+  public record TagUpdateResult(String specimenId, SpecimenStatus status) {}
+
   public record ReviewResult(
       String specimenId, SpecimenStatus status, String reviewedBy, Instant reviewedAt) {}
 

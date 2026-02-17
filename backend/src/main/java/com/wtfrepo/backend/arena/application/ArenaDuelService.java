@@ -10,8 +10,10 @@ import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -28,6 +30,7 @@ public class ArenaDuelService {
   private static final Logger log = LoggerFactory.getLogger(ArenaDuelService.class);
 
   private final ArenaSpecimenMatchReadModel specimenMatchReadModel;
+  private final ArenaSpecimenMatchPairReadModel specimenMatchPairReadModel;
   private final ArenaSpecimenRatingStore arenaSpecimenRatingStore;
   private final ArenaBattleIdVerifier arenaBattleIdVerifier;
   private final ArenaPolicyPort arenaPolicyPort;
@@ -38,6 +41,7 @@ public class ArenaDuelService {
 
   public ArenaDuelService(
       ArenaSpecimenMatchReadModel specimenMatchReadModel,
+      ArenaSpecimenMatchPairReadModel specimenMatchPairReadModel,
       ArenaSpecimenRatingStore arenaSpecimenRatingStore,
       ArenaBattleIdVerifier arenaBattleIdVerifier,
       ArenaPolicyPort arenaPolicyPort,
@@ -46,6 +50,7 @@ public class ArenaDuelService {
       ArenaFeaturedDuelStore arenaFeaturedDuelStore,
       ArenaMatchProperties arenaMatchProperties) {
     this.specimenMatchReadModel = specimenMatchReadModel;
+    this.specimenMatchPairReadModel = specimenMatchPairReadModel;
     this.arenaSpecimenRatingStore = arenaSpecimenRatingStore;
     this.arenaBattleIdVerifier = arenaBattleIdVerifier;
     this.arenaPolicyPort = arenaPolicyPort;
@@ -106,7 +111,7 @@ public class ArenaDuelService {
       throw ArenaExceptions.arenaPoolEmpty(ArenaConstants.Message.ARENA_POOL_EMPTY);
     }
 
-    List<MatchCandidate> allCandidates = buildCandidates(resolvedSpecimens);
+    List<MatchCandidate> allCandidates = resolveCandidates(resolvedSpecimens);
     if (allCandidates.isEmpty()) {
       throw ArenaExceptions.arenaNoMatch(ArenaConstants.Message.ARENA_NO_MATCH);
     }
@@ -131,7 +136,9 @@ public class ArenaDuelService {
     MatchCandidate selected = selectWeighted(filteredCandidates);
     String battleId =
         arenaBattleIdVerifier.issue(
-            selected.left().candidate().specimenId(), selected.right().candidate().specimenId());
+            selected.left().candidate().specimenId(),
+            selected.right().candidate().specimenId(),
+            selected.matchType());
 
     ArenaPolicySnapshot policySnapshot = arenaPolicyPort.currentPolicySnapshot();
     DuelWallet wallet =
@@ -146,7 +153,7 @@ public class ArenaDuelService {
             toDuelSpecimen(selected.right()),
             new DuelMatchMeta(
                 selected.matchType().name(),
-                arenaMatchProperties.getProfileVersion(),
+                selected.matchProfileVersion(),
                 selected.left().isInIpoProtection() || selected.right().isInIpoProtection()),
             shouldResetExcludeSet,
             wallet);
@@ -182,7 +189,58 @@ public class ArenaDuelService {
         .orElse(null);
   }
 
-  private List<MatchCandidate> buildCandidates(List<ResolvedSpecimen> resolvedSpecimens) {
+  private List<MatchCandidate> resolveCandidates(List<ResolvedSpecimen> resolvedSpecimens) {
+    if (arenaMatchProperties.isPairFirstEnabled()) {
+      List<MatchCandidate> precomputedCandidates = buildPrecomputedPairCandidates(resolvedSpecimens);
+      if (!precomputedCandidates.isEmpty()) {
+        return precomputedCandidates;
+      }
+      if (!arenaMatchProperties.isRuntimePairFallbackEnabled()) {
+        log.warn(
+            "arena_duel_pair_source_exhausted pairFirstEnabled=true runtimeFallbackEnabled=false reason=no_precomputed_rows");
+        return List.of();
+      }
+      log.warn(
+          "arena_duel_pair_source_fallback reason=no_precomputed_rows runtimeFallbackEnabled=true");
+    }
+    return buildRuntimeCandidates(resolvedSpecimens);
+  }
+
+  private List<MatchCandidate> buildPrecomputedPairCandidates(List<ResolvedSpecimen> resolvedSpecimens) {
+    List<ArenaSpecimenMatchPairReadModel.SpecimenMatchPair> precomputedPairs =
+        specimenMatchPairReadModel.listActivePairs();
+    if (precomputedPairs.isEmpty()) {
+      return List.of();
+    }
+
+    Map<String, ResolvedSpecimen> resolvedBySpecimenId = new LinkedHashMap<>();
+    for (ResolvedSpecimen resolvedSpecimen : resolvedSpecimens) {
+      resolvedBySpecimenId.put(resolvedSpecimen.candidate().specimenId(), resolvedSpecimen);
+    }
+
+    List<MatchCandidate> candidates = new ArrayList<>();
+    for (ArenaSpecimenMatchPairReadModel.SpecimenMatchPair pair : precomputedPairs) {
+      ResolvedSpecimen left = resolvedBySpecimenId.get(pair.leftSpecimenId());
+      ResolvedSpecimen right = resolvedBySpecimenId.get(pair.rightSpecimenId());
+      if (left == null || right == null) {
+        continue;
+      }
+
+      double cooldownWeight = Math.min(cooldownWeight(left), cooldownWeight(right));
+      int matchScore = Math.max(0, pair.matchScore());
+      double finalScore = Math.max(1.0D, matchScore * cooldownWeight);
+      candidates.add(
+          new MatchCandidate(
+              left,
+              right,
+              pair.matchType(),
+              finalScore,
+              resolveMatchProfileVersion(pair.matchProfileVersion())));
+    }
+    return candidates;
+  }
+
+  private List<MatchCandidate> buildRuntimeCandidates(List<ResolvedSpecimen> resolvedSpecimens) {
     List<MatchCandidate> result = new ArrayList<>();
     Set<String> adjacency = normalizeAdjacentPairs(arenaMatchProperties.getAdjacentSpeciesPairs());
     for (int i = 0; i < resolvedSpecimens.size() - 1; i++) {
@@ -193,7 +251,9 @@ public class ArenaDuelService {
         int matchScore = speciesScore(matchType) + diagnosisBonus(left, right);
         double cooldownWeight = Math.min(cooldownWeight(left), cooldownWeight(right));
         double finalScore = Math.max(1.0D, matchScore * cooldownWeight);
-        result.add(new MatchCandidate(left, right, matchType, finalScore));
+        result.add(
+            new MatchCandidate(
+                left, right, matchType, finalScore, resolveMatchProfileVersion(null)));
       }
     }
     return result;
@@ -216,8 +276,18 @@ public class ArenaDuelService {
   }
 
   private double cooldownWeight(ResolvedSpecimen specimen) {
-    // TODO(M01-arena): replace placeholder with specimen_rating.recent_appearances based weight.
-    return 1.0D;
+    // Contract formula: weight = 1 / (1 + recent_appearances * alpha).
+    return computeCooldownWeight(
+        specimen.rating().recentAppearances(), arenaMatchProperties.getCooldownAlpha());
+  }
+
+  static double computeCooldownWeight(int recentAppearances, double cooldownAlpha) {
+    int safeRecentAppearances = Math.max(0, recentAppearances);
+    double safeCooldownAlpha = cooldownAlpha;
+    if (!Double.isFinite(safeCooldownAlpha) || safeCooldownAlpha < 0.0D) {
+      safeCooldownAlpha = 0.0D;
+    }
+    return 1.0D / (1.0D + safeRecentAppearances * safeCooldownAlpha);
   }
 
   private ArenaMatchType resolveMatchType(String leftSpecies, String rightSpecies, Set<String> adjacency) {
@@ -320,6 +390,16 @@ public class ArenaDuelService {
     return left.compareTo(right) <= 0 ? left + separator + right : right + separator + left;
   }
 
+  private String resolveMatchProfileVersion(String pairProfileVersion) {
+    if (StringUtils.hasText(pairProfileVersion)) {
+      return pairProfileVersion.trim();
+    }
+    if (StringUtils.hasText(arenaMatchProperties.getProfileVersion())) {
+      return arenaMatchProperties.getProfileVersion().trim();
+    }
+    return "unknown";
+  }
+
   private DuelSpecimen toDuelSpecimen(ResolvedSpecimen specimen) {
     ArenaSpecimenMatchReadModel.SpecimenMatchCandidate candidate = specimen.candidate();
     return new DuelSpecimen(
@@ -372,5 +452,9 @@ public class ArenaDuelService {
   }
 
   private record MatchCandidate(
-      ResolvedSpecimen left, ResolvedSpecimen right, ArenaMatchType matchType, double finalScore) {}
+      ResolvedSpecimen left,
+      ResolvedSpecimen right,
+      ArenaMatchType matchType,
+      double finalScore,
+      String matchProfileVersion) {}
 }

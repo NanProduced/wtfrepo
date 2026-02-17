@@ -50,6 +50,8 @@ public class SecurityConfig {
                     .authenticated()
                     .requestMatchers("/api/v1/wallet/**")
                     .authenticated()
+                    .requestMatchers("/api/v1/bet/**")
+                    .authenticated()
                     .requestMatchers("/api/v1/watchlist/**")
                     .authenticated()
                     .requestMatchers("/api/v1/admin/**")
@@ -128,4 +130,3 @@ public class SecurityConfig {
     return attr != null ? String.valueOf(attr) : null;
   }
 }
-

@@ -10,11 +10,13 @@ import com.wtfrepo.backend.auth.infra.persistence.repository.AuthIdentityJpaRepo
 import com.wtfrepo.backend.auth.infra.persistence.repository.AuthUserJpaRepository;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@ConditionalOnBean(AuthUserJpaRepository.class)
 public class JpaAuthUserStore implements AuthUserStore {
 
   private final AuthUserJpaRepository authUserJpaRepository;

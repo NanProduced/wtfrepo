@@ -11,7 +11,10 @@ import com.wtfrepo.backend.arena.application.support.ArenaBattleIdVerifier;
 import com.wtfrepo.backend.arena.application.support.ArenaConstants;
 import com.wtfrepo.backend.arena.application.support.ArenaContractProperties;
 import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
+import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import com.wtfrepo.backend.arena.infra.support.InMemoryArenaVoteIdempotencyStore;
+import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
+import com.wtfrepo.backend.shared.outbox.OutboxEventStore;
 import com.wtfrepo.backend.shared.web.ApiException;
 import com.wtfrepo.backend.shared.web.ErrorCode;
 import com.wtfrepo.backend.specimen.application.SpecimenContractProperties;
@@ -29,6 +32,7 @@ class ArenaDuelServiceTest {
   private ArenaDuelService arenaDuelService;
   private InMemoryRatingStore ratingStore;
   private InMemorySpecimenMatchReadModel readModel;
+  private InMemorySpecimenMatchPairReadModel pairReadModel;
   private RecordingEconomyPort economyPort;
   private ArenaBattleIdVerifier battleIdVerifier;
   private ArenaMatchProperties arenaMatchProperties;
@@ -55,6 +59,8 @@ class ArenaDuelServiceTest {
 
     arenaMatchProperties = new ArenaMatchProperties();
     arenaMatchProperties.setResetExcludeThreshold(2);
+    arenaMatchProperties.setPairFirstEnabled(true);
+    arenaMatchProperties.setRuntimePairFallbackEnabled(true);
 
     readModel = new InMemorySpecimenMatchReadModel();
     readModel.seed(
@@ -90,6 +96,26 @@ class ArenaDuelServiceTest {
             "species_c",
             List.of("diag_q")));
 
+    pairReadModel = new InMemorySpecimenMatchPairReadModel();
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_1", "spm_2", ArenaMatchType.SAME_SPECIES, 115, "pair-profile-v1"));
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_1", "spm_3", ArenaMatchType.ADJACENT, 60, "pair-profile-v1"));
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_1", "spm_4", ArenaMatchType.CROSS, 0, "pair-profile-v1"));
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_2", "spm_3", ArenaMatchType.CROSS, 0, "pair-profile-v1"));
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_2", "spm_4", ArenaMatchType.CROSS, 0, "pair-profile-v1"));
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_3", "spm_4", ArenaMatchType.CROSS, 0, "pair-profile-v1"));
+
     ratingStore = new InMemoryRatingStore();
     ratingStore.seed("spm_1", 1500, 0);
     ratingStore.seed("spm_2", 1490, 12);
@@ -103,6 +129,7 @@ class ArenaDuelServiceTest {
     arenaDuelService =
         new ArenaDuelService(
             readModel,
+            pairReadModel,
             ratingStore,
             battleIdVerifier,
             policyPort,
@@ -124,6 +151,14 @@ class ArenaDuelServiceTest {
     assertThat(result.wallet().voteCost()).isEqualTo(100);
     assertThat(result.left().specimenId()).isNotEqualTo(result.right().specimenId());
     assertThat(result.shouldResetExcludeSet()).isFalse();
+  }
+
+  @Test
+  void shouldComputeCooldownWeightByRecentAppearances() {
+    assertThat(ArenaDuelService.computeCooldownWeight(0, 0.3D)).isEqualTo(1.0D);
+    assertThat(ArenaDuelService.computeCooldownWeight(10, 0.3D)).isEqualTo(0.25D);
+    assertThat(ArenaDuelService.computeCooldownWeight(10, -1.0D)).isEqualTo(1.0D);
+    assertThat(ArenaDuelService.computeCooldownWeight(-5, 0.3D)).isEqualTo(1.0D);
   }
 
   @Test
@@ -158,10 +193,56 @@ class ArenaDuelServiceTest {
   }
 
   @Test
+  void shouldUsePrecomputedPairProfileVersionWhenPairFirstEnabled() {
+    pairReadModel.clear();
+    pairReadModel.seed(
+        new ArenaSpecimenMatchPairReadModel.SpecimenMatchPair(
+            "spm_1", "spm_2", ArenaMatchType.SAME_SPECIES, 115, "pair-profile-v9"));
+
+    ArenaDuelService.DuelResult result =
+        arenaDuelService.duel(
+            "req-pair-first",
+            new ArenaDuelService.DuelQuery(Set.of(), Set.of(), "usr_pair_first", "127.0.0.1"));
+
+    assertThat(result.matchMeta().matchProfileVersion()).isEqualTo("pair-profile-v9");
+  }
+
+  @Test
+  void shouldFallbackToRuntimeCompositionWhenPrecomputedPairsMissing() {
+    pairReadModel.clear();
+    arenaMatchProperties.setProfileVersion("runtime-profile-v2");
+    arenaMatchProperties.setRuntimePairFallbackEnabled(true);
+
+    ArenaDuelService.DuelResult result =
+        arenaDuelService.duel(
+            "req-runtime-fallback",
+            new ArenaDuelService.DuelQuery(Set.of(), Set.of(), "usr_pair_fallback", "127.0.0.1"));
+
+    assertThat(result.matchMeta().matchProfileVersion()).isEqualTo("runtime-profile-v2");
+  }
+
+  @Test
+  void shouldReturnNoMatchWhenPairFirstEnabledWithoutRuntimeFallback() {
+    pairReadModel.clear();
+    arenaMatchProperties.setRuntimePairFallbackEnabled(false);
+
+    assertThatThrownBy(
+            () ->
+                arenaDuelService.duel(
+                    "req-no-fallback",
+                    new ArenaDuelService.DuelQuery(
+                        Set.of(), Set.of(), "usr_pair_no_fallback", "127.0.0.1")))
+        .isInstanceOf(ApiException.class)
+        .extracting(ex -> ((ApiException) ex).getErrorCode())
+        .isEqualTo(ErrorCode.ARENA_NO_MATCH);
+  }
+
+  @Test
   void shouldRateLimitAnonymousDuelRequests() {
     ArenaDuelService duelService =
         new ArenaDuelService(
             readModel,
+            pairReadModel,
             ratingStore,
             battleIdVerifier,
             policyPort,
@@ -186,6 +267,9 @@ class ArenaDuelServiceTest {
         arenaDuelService.duel(
             "req-3", new ArenaDuelService.DuelQuery(Set.of(), Set.of(), "usr_vote", "127.0.0.1"));
 
+    ArenaBattleIdVerifier.VerifiedBattle verifiedBattle = battleIdVerifier.verify(duelResult.battleId());
+    assertThat(verifiedBattle.matchType().name()).isEqualTo(duelResult.matchMeta().matchType());
+
     ArenaVoteService voteService =
         new ArenaVoteService(
             new InMemoryArenaVoteIdempotencyStore(),
@@ -194,6 +278,7 @@ class ArenaDuelServiceTest {
             policyPort,
             economyPort,
             policyPort,
+            new NoopOutboxStore(),
             arenaMatchProperties);
 
     ArenaVoteService.VoteResult voteResult =
@@ -224,6 +309,7 @@ class ArenaDuelServiceTest {
     ArenaDuelService duelService =
         new ArenaDuelService(
             oneCandidateReadModel,
+            pairReadModel,
             oneRatingStore,
             battleIdVerifier,
             policyPort,
@@ -324,7 +410,7 @@ class ArenaDuelServiceTest {
     private final Map<String, ArenaSpecimenRating> store = new HashMap<>();
 
     void seed(String specimenId, int elo, long matchesPlayed) {
-      store.put(specimenId, new ArenaSpecimenRating(specimenId, elo, matchesPlayed));
+      store.put(specimenId, new ArenaSpecimenRating(specimenId, elo, matchesPlayed, 0));
     }
 
     @Override
@@ -340,9 +426,37 @@ class ArenaDuelServiceTest {
       }
       ArenaSpecimenRating updated =
           new ArenaSpecimenRating(
-              specimenId, rating.eloScore() + eloDelta, rating.matchesPlayed() + 1);
+              specimenId,
+              rating.eloScore() + eloDelta,
+              rating.matchesPlayed() + 1,
+              rating.recentAppearances());
       store.put(specimenId, updated);
       return updated;
     }
+  }
+
+  private static final class InMemorySpecimenMatchPairReadModel
+      implements ArenaSpecimenMatchPairReadModel {
+
+    private final List<SpecimenMatchPair> pairs = new java.util.ArrayList<>();
+
+    void seed(SpecimenMatchPair pair) {
+      pairs.add(pair);
+    }
+
+    void clear() {
+      pairs.clear();
+    }
+
+    @Override
+    public List<SpecimenMatchPair> listActivePairs() {
+      return List.copyOf(pairs);
+    }
+  }
+
+  private static final class NoopOutboxStore implements OutboxEventStore {
+
+    @Override
+    public void append(OutboxEventCommand command) {}
   }
 }

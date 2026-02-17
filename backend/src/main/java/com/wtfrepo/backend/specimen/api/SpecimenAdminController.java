@@ -7,6 +7,7 @@ import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ImportResul
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ReviewResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.SubmitCommand;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.SubmitResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.TagUpdateResult;
 import com.wtfrepo.backend.specimen.application.support.SpecimenConstants;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -82,6 +83,33 @@ public class SpecimenAdminController {
             SpecimenApiSupport.parseReviewAction(request.action()),
             request.reason());
     return ResponseEntity.ok(AdminReviewResponse.from(result));
+  }
+
+  @PostMapping("/{specimenId}/deactivate")
+  public ResponseEntity<AdminReviewResponse> deactivateSpecimen(
+      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
+      @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY) String idempotencyKey,
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String specimenId,
+      @Valid @RequestBody AdminDeactivateRequest request) {
+    String adminUserId = SpecimenApiSupport.requireAdminUserId(jwt);
+    ReviewResult result =
+        specimenAdminService.deactivate(adminUserId, specimenId, idempotencyKey, request.reason());
+    return ResponseEntity.ok(AdminReviewResponse.from(result));
+  }
+
+  @PostMapping("/{specimenId}/tags")
+  public ResponseEntity<AdminTagUpdateResponse> updateSpecimenTags(
+      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
+      @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY) String idempotencyKey,
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String specimenId,
+      @Valid @RequestBody AdminTagUpdateRequest request) {
+    String adminUserId = SpecimenApiSupport.requireAdminUserId(jwt);
+    TagUpdateResult result =
+        specimenAdminService.updateTags(
+            adminUserId, specimenId, idempotencyKey, request.tags().stream().map(TagRequest::toModel).toList());
+    return ResponseEntity.ok(AdminTagUpdateResponse.from(result));
   }
 
   public record AdminImportRequest(@NotBlank String githubUrl) {}
@@ -291,7 +319,18 @@ public class SpecimenAdminController {
     }
   }
 
+  public record AdminTagUpdateRequest(@NotEmpty List<@Valid TagRequest> tags) {}
+
+  public record AdminTagUpdateResponse(String specimenId, String status) {
+
+    static AdminTagUpdateResponse from(TagUpdateResult result) {
+      return new AdminTagUpdateResponse(result.specimenId(), result.status().name());
+    }
+  }
+
   public record AdminReviewRequest(@NotBlank String action, String reason) {}
+
+  public record AdminDeactivateRequest(String reason) {}
 
   public record AdminReviewResponse(
       String specimenId, String status, String reviewedBy, Instant reviewedAt) {

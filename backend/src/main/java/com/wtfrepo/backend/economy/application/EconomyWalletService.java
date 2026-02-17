@@ -65,6 +65,15 @@ public class EconomyWalletService {
 
   @Transactional
   public long deduct(DeductCommand command) {
+    return deductInternal(command, EconomyLedgerType.ARENA_VOTE_COST);
+  }
+
+  @Transactional
+  public long deductBet(DeductCommand command) {
+    return deductInternal(command, EconomyLedgerType.BET);
+  }
+
+  private long deductInternal(DeductCommand command, EconomyLedgerType ledgerType) {
     validateDeductAmount(command.amount());
 
     Optional<EconomyLedgerJpaEntity> existingByIdempotency =
@@ -90,7 +99,7 @@ public class EconomyWalletService {
     ledgerRepository.save(
         EconomyLedgerJpaEntity.create(
             command.userId(),
-            EconomyLedgerType.ARENA_VOTE_COST,
+            ledgerType,
             -command.amount(),
             balanceAfter,
             command.refType(),

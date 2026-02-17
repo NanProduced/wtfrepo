@@ -92,4 +92,13 @@ public class SpecimenJpaEntity {
     this.reviewedAt = now;
     this.updatedAt = now;
   }
+
+  public void deactivate(String reviewer, String reason) {
+    Instant now = Instant.now();
+    this.status = SpecimenStatus.DEACTIVATED;
+    this.reviewedBy = reviewer;
+    this.reviewedAt = now;
+    this.note = reason;
+    this.updatedAt = now;
+  }
 }

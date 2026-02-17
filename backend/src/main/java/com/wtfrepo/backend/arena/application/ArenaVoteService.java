@@ -8,9 +8,11 @@ import com.wtfrepo.backend.arena.application.support.ArenaConstants;
 import com.wtfrepo.backend.arena.application.support.ArenaExceptions;
 import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaEloCalculator;
-import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import com.wtfrepo.backend.arena.domain.ArenaVoteWinner;
+import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
+import com.wtfrepo.backend.shared.outbox.OutboxEventStore;
 import com.wtfrepo.backend.shared.policy.ArenaRuntimePolicyPort;
+import java.time.Instant;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,7 @@ public class ArenaVoteService {
   private final ArenaPolicyPort arenaPolicyPort;
   private final ArenaEconomyPort arenaEconomyPort;
   private final ArenaRuntimePolicyPort arenaRuntimePolicyPort;
+  private final OutboxEventStore outboxEventStore;
   private final ArenaMatchProperties arenaMatchProperties;
 
   public ArenaVoteService(
@@ -39,6 +42,7 @@ public class ArenaVoteService {
       ArenaPolicyPort arenaPolicyPort,
       ArenaEconomyPort arenaEconomyPort,
       ArenaRuntimePolicyPort arenaRuntimePolicyPort,
+      OutboxEventStore outboxEventStore,
       ArenaMatchProperties arenaMatchProperties) {
     this.idempotencyStore = idempotencyStore;
     this.battleIdVerifier = battleIdVerifier;
@@ -46,6 +50,7 @@ public class ArenaVoteService {
     this.arenaPolicyPort = arenaPolicyPort;
     this.arenaEconomyPort = arenaEconomyPort;
     this.arenaRuntimePolicyPort = arenaRuntimePolicyPort;
+    this.outboxEventStore = outboxEventStore;
     this.arenaMatchProperties = arenaMatchProperties;
   }
 
@@ -127,9 +132,8 @@ public class ArenaVoteService {
                 eloResult.rightDelta(),
                 eloResult.leftKFactor(),
                 eloResult.rightKFactor(),
-                // Vote endpoint currently persists only duel-generated battle ids.
-                // Match type/profile are persisted as snapshots to keep historical reproducibility.
-                ArenaMatchType.CROSS,
+                // Match metadata is sourced from signed battleId payload and snapshotted for audit.
+                battle.matchType(),
                 arenaMatchProperties.getProfileVersion(),
                 policySnapshot,
                 provisionalResult));
@@ -163,6 +167,24 @@ public class ArenaVoteService {
           result.rightEloAfter(),
           rightAfter.eloScore());
     }
+
+    appendVoteCompletedOutboxEvent(idempotencyKey, result);
+    appendEloUpdatedOutboxEvent(
+        idempotencyKey,
+        battle.leftSpecimenId(),
+        leftRating.eloScore(),
+        leftAfter.eloScore(),
+        eloResult.leftKFactor());
+    appendEloUpdatedOutboxEvent(
+        idempotencyKey,
+        battle.rightSpecimenId(),
+        rightRating.eloScore(),
+        rightAfter.eloScore(),
+        eloResult.rightKFactor());
+    appendIpoCompletedOutboxEventIfNeeded(
+        idempotencyKey, battle.leftSpecimenId(), leftRating.matchesPlayed(), leftAfter);
+    appendIpoCompletedOutboxEventIfNeeded(
+        idempotencyKey, battle.rightSpecimenId(), rightRating.matchesPlayed(), rightAfter);
 
     log.info(
         "arena_vote_success requestId={} userId={} battleId={} winner={} cost={} policyVersion={}",
@@ -216,6 +238,65 @@ public class ArenaVoteService {
     return new LockedRatingPair(left, right);
   }
 
+  private void appendVoteCompletedOutboxEvent(String idempotencyKey, VoteResult result) {
+    String eventType = "VoteCompletedEvent";
+    String eventKey = "arena:vote-completed:" + idempotencyKey;
+    VoteCompletedEventPayload payload =
+        new VoteCompletedEventPayload(
+            result.battleId(),
+            idempotencyKey,
+            result.winner(),
+            result.leftSpecimenId(),
+            result.rightSpecimenId(),
+            result.leftDelta(),
+            result.rightDelta());
+    outboxEventStore.append(
+        new OutboxEventCommand(
+            "ARENA_BATTLE",
+            result.battleId(),
+            eventType,
+            eventKey,
+            payload,
+            Instant.now()));
+  }
+
+  /** Emits specimen-level Elo update event for read-model/cache refresh consumers. */
+  private void appendEloUpdatedOutboxEvent(
+      String idempotencyKey, String specimenId, int eloBefore, int eloAfter, int kFactor) {
+    String eventType = "EloUpdatedEvent";
+    String eventKey = "arena:elo-updated:" + idempotencyKey + ":" + specimenId;
+    EloUpdatedEventPayload payload =
+        new EloUpdatedEventPayload(specimenId, eloBefore, eloAfter, kFactor);
+    outboxEventStore.append(
+        new OutboxEventCommand(
+            "ARENA_SPECIMEN", specimenId, eventType, eventKey, payload, Instant.now()));
+  }
+
+  /**
+   * Emits IPO completion event exactly once when a specimen crosses from calibration to IPO in the
+   * current vote transaction.
+   */
+  private void appendIpoCompletedOutboxEventIfNeeded(
+      String idempotencyKey,
+      String specimenId,
+      long matchesBefore,
+      ArenaSpecimenRating ratingAfter) {
+    if (matchesBefore >= 10 || ratingAfter.matchesPlayed() < 10) {
+      return;
+    }
+
+    String eventType = "IpoCompletedEvent";
+    String eventKey = "arena:ipo-completed:" + idempotencyKey + ":" + specimenId;
+    IpoCompletedEventPayload payload =
+        new IpoCompletedEventPayload(
+            specimenId,
+            ratingAfter.eloScore(),
+            Math.toIntExact(Math.min(Integer.MAX_VALUE, ratingAfter.matchesPlayed())));
+    outboxEventStore.append(
+        new OutboxEventCommand(
+            "ARENA_SPECIMEN", specimenId, eventType, eventKey, payload, Instant.now()));
+  }
+
   private Optional<VoteResult> persistVoteFact(ArenaVoteIdempotencyStore.PersistVoteCommand command) {
     try {
       idempotencyStore.save(command);
@@ -257,6 +338,21 @@ public class ArenaVoteService {
       int bugCost,
       long walletBalanceAfter,
       ArenaPolicySnapshot policySnapshot) {}
+
+  private record VoteCompletedEventPayload(
+      String battleId,
+      String orderId,
+      String winner,
+      String leftSpecimenId,
+      String rightSpecimenId,
+      int leftDelta,
+      int rightDelta) {}
+
+  private record EloUpdatedEventPayload(
+      String specimenId, int eloBefore, int eloAfter, int kFactor) {}
+
+  private record IpoCompletedEventPayload(
+      String specimenId, int calibratedScore, int matchesPlayed) {}
 
   private record LockedRatingPair(ArenaSpecimenRating left, ArenaSpecimenRating right) {}
 }

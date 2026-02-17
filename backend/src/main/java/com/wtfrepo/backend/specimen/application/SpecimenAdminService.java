@@ -1,5 +1,7 @@
 package com.wtfrepo.backend.specimen.application;
 
+import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenRatingJpaEntity;
+import com.wtfrepo.backend.arena.infra.persistence.repository.SpecimenRatingJpaRepository;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.CodeHighlightInput;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.FetchedMeta;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ImportResult;
@@ -14,6 +16,7 @@ import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ReviewResul
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.SubmitCommand;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.SubmitResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.TagAssignment;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.TagUpdateResult;
 import com.wtfrepo.backend.specimen.application.support.SpecimenConstants;
 import com.wtfrepo.backend.specimen.application.support.SpecimenExceptions;
 import com.wtfrepo.backend.specimen.application.support.SpecimenJsonCodec;
@@ -47,6 +50,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -67,6 +71,7 @@ public class SpecimenAdminService {
 
   private final SpecimenJpaRepository specimenJpaRepository;
   private final SpecimenArenaMetricsJpaRepository specimenArenaMetricsJpaRepository;
+  private final SpecimenRatingJpaRepository specimenRatingJpaRepository;
   private final SpecimenGithubMetadataJpaRepository specimenGithubMetadataJpaRepository;
   private final SpecimenTagJpaRepository specimenTagJpaRepository;
   private final SpecimenReadmeExcerptJpaRepository specimenReadmeExcerptJpaRepository;
@@ -78,10 +83,12 @@ public class SpecimenAdminService {
   private final ArenaRuntimePolicyPort arenaRuntimePolicyPort;
   private final SpecimenRequestFingerprintCalculator specimenRequestFingerprintCalculator;
   private final SpecimenJsonCodec specimenJsonCodec;
+  private final SpecimenOutboxEventPublisher specimenOutboxEventPublisher;
 
   public SpecimenAdminService(
       SpecimenJpaRepository specimenJpaRepository,
       SpecimenArenaMetricsJpaRepository specimenArenaMetricsJpaRepository,
+      SpecimenRatingJpaRepository specimenRatingJpaRepository,
       SpecimenGithubMetadataJpaRepository specimenGithubMetadataJpaRepository,
       SpecimenTagJpaRepository specimenTagJpaRepository,
       SpecimenReadmeExcerptJpaRepository specimenReadmeExcerptJpaRepository,
@@ -92,9 +99,11 @@ public class SpecimenAdminService {
       SpecimenContractProperties specimenContractProperties,
       ArenaRuntimePolicyPort arenaRuntimePolicyPort,
       SpecimenRequestFingerprintCalculator specimenRequestFingerprintCalculator,
-      SpecimenJsonCodec specimenJsonCodec) {
+      SpecimenJsonCodec specimenJsonCodec,
+      SpecimenOutboxEventPublisher specimenOutboxEventPublisher) {
     this.specimenJpaRepository = specimenJpaRepository;
     this.specimenArenaMetricsJpaRepository = specimenArenaMetricsJpaRepository;
+    this.specimenRatingJpaRepository = specimenRatingJpaRepository;
     this.specimenGithubMetadataJpaRepository = specimenGithubMetadataJpaRepository;
     this.specimenTagJpaRepository = specimenTagJpaRepository;
     this.specimenReadmeExcerptJpaRepository = specimenReadmeExcerptJpaRepository;
@@ -106,6 +115,7 @@ public class SpecimenAdminService {
     this.arenaRuntimePolicyPort = arenaRuntimePolicyPort;
     this.specimenRequestFingerprintCalculator = specimenRequestFingerprintCalculator;
     this.specimenJsonCodec = specimenJsonCodec;
+    this.specimenOutboxEventPublisher = specimenOutboxEventPublisher;
   }
 
   @Transactional
@@ -127,11 +137,12 @@ public class SpecimenAdminService {
             parsedGithubUrl.owner() + "/" + parsedGithubUrl.repo(),
             "https://github.com/" + parsedGithubUrl.owner() + "/" + parsedGithubUrl.repo());
     specimenJpaRepository.save(specimen);
-    // TODO(M01-arena): initialize metrics via arena-owned service after module boundary is settled.
+    int initialElo = arenaRuntimePolicyPort.currentArenaRuntimePolicy().initialElo();
+
+    // Legacy read paths still depend on specimen_arena_metrics.
     specimenArenaMetricsJpaRepository.save(
-        SpecimenArenaMetricsJpaEntity.createDefault(
-            specimenId,
-            arenaRuntimePolicyPort.currentArenaRuntimePolicy().initialElo()));
+        SpecimenArenaMetricsJpaEntity.createDefault(specimenId, initialElo));
+    specimenRatingJpaRepository.save(SpecimenRatingJpaEntity.createDefault(specimenId, initialElo));
 
     SpecimenGithubMetadataJpaEntity metadata =
         SpecimenGithubMetadataJpaEntity.createDraft(
@@ -257,6 +268,16 @@ public class SpecimenAdminService {
     }
     specimenJpaRepository.save(specimen);
 
+    if (action == SpecimenReviewAction.APPROVE) {
+      List<TagAssignment> currentTags = findTagAssignmentsForSpecimen(specimenId);
+      specimenOutboxEventPublisher.publishSpecimenActivated(
+          specimenId,
+          resolveSpecies(currentTags),
+          resolveDiagnosisTags(currentTags),
+          specimen.getStatus(),
+          idempotencyKey);
+    }
+
     StoredActionResult storedActionResult =
         new StoredActionResult(
             specimenId, specimen.getStatus(), specimen.getReviewedBy(), specimen.getReviewedAt());
@@ -276,6 +297,99 @@ public class SpecimenAdminService {
         storedActionResult.reviewedAt());
   }
 
+  @Transactional
+  public TagUpdateResult updateTags(
+      String adminUserId, String specimenId, String idempotencyKey, List<TagAssignment> tags) {
+    validateIdempotencyKey(idempotencyKey);
+    validateTagAssignments(tags);
+
+    List<TagAssignment> normalizedTags = normalizeTagAssignments(tags);
+    String requestFingerprint =
+        specimenRequestFingerprintCalculator.fingerprint(new TagUpdatePayload(normalizedTags));
+
+    Optional<StoredActionResult> replayResult =
+        findReplayResult(
+            adminUserId,
+            specimenId,
+            SpecimenAdminOperation.TAGS_UPDATE,
+            idempotencyKey,
+            requestFingerprint);
+    if (replayResult.isPresent()) {
+      StoredActionResult result = replayResult.get();
+      return new TagUpdateResult(result.specimenId(), result.status());
+    }
+
+    SpecimenJpaEntity specimen = requireSpecimen(specimenId);
+    if (specimen.getStatus() != SpecimenStatus.ACTIVE) {
+      throw SpecimenExceptions.conflict(SpecimenConstants.Message.INVALID_STATUS_TRANSITION);
+    }
+
+    List<TagAssignment> oldTags = findTagAssignmentsForSpecimen(specimenId);
+    replaceSpecimenTags(specimenId, normalizedTags);
+
+    if (!tagAssignmentsEqual(oldTags, normalizedTags)) {
+      specimenOutboxEventPublisher.publishSpecimenTagsChanged(
+          specimenId,
+          resolveSpecies(oldTags),
+          resolveSpecies(normalizedTags),
+          resolveDiagnosisTags(oldTags),
+          resolveDiagnosisTags(normalizedTags),
+          idempotencyKey);
+    }
+
+    storeReplayResult(
+        adminUserId,
+        specimenId,
+        SpecimenAdminOperation.TAGS_UPDATE,
+        idempotencyKey,
+        requestFingerprint,
+        new StoredActionResult(specimenId, specimen.getStatus(), null, null));
+    return new TagUpdateResult(specimenId, specimen.getStatus());
+  }
+
+  @Transactional
+  public ReviewResult deactivate(
+      String adminUserId, String specimenId, String idempotencyKey, String reason) {
+    validateIdempotencyKey(idempotencyKey);
+    String requestFingerprint =
+        specimenRequestFingerprintCalculator.fingerprint(new DeactivatePayload(reason));
+
+    Optional<StoredActionResult> replayResult =
+        findReplayResult(
+            adminUserId,
+            specimenId,
+            SpecimenAdminOperation.DEACTIVATE,
+            idempotencyKey,
+            requestFingerprint);
+    if (replayResult.isPresent()) {
+      StoredActionResult result = replayResult.get();
+      return new ReviewResult(
+          result.specimenId(), result.status(), result.reviewedBy(), result.reviewedAt());
+    }
+
+    SpecimenJpaEntity specimen = requireSpecimen(specimenId);
+    if (specimen.getStatus() != SpecimenStatus.ACTIVE) {
+      throw SpecimenExceptions.conflict(SpecimenConstants.Message.INVALID_STATUS_TRANSITION);
+    }
+
+    specimen.deactivate(adminUserId, reason);
+    specimenJpaRepository.save(specimen);
+    specimenOutboxEventPublisher.publishSpecimenDeactivated(specimenId, idempotencyKey);
+
+    StoredActionResult result =
+        new StoredActionResult(
+            specimenId, specimen.getStatus(), specimen.getReviewedBy(), specimen.getReviewedAt());
+    storeReplayResult(
+        adminUserId,
+        specimenId,
+        SpecimenAdminOperation.DEACTIVATE,
+        idempotencyKey,
+        requestFingerprint,
+        result);
+    return new ReviewResult(
+        result.specimenId(), result.status(), result.reviewedBy(), result.reviewedAt());
+  }
+
   private void upsertLanguages(String specimenId, List<LanguageItem> languages) {
     SpecimenGithubMetadataJpaEntity metadata =
         specimenGithubMetadataJpaRepository
@@ -291,8 +405,59 @@ public class SpecimenAdminService {
   private void replaceSpecimenTags(String specimenId, List<TagAssignment> tags) {
     specimenTagJpaRepository.deleteBySpecimenId(specimenId);
     List<SpecimenTagJpaEntity> entities =
-        tags.stream().map(tag -> SpecimenTagJpaEntity.of(specimenId, tag.dimensionKey(), tag.tagKey())).toList();
+        normalizeTagAssignments(tags).stream()
+            .map(tag -> SpecimenTagJpaEntity.of(specimenId, tag.dimensionKey(), tag.tagKey()))
+            .toList();
     specimenTagJpaRepository.saveAll(entities);
+  }
+
+  private List<TagAssignment> findTagAssignmentsForSpecimen(String specimenId) {
+    return normalizeTagAssignments(
+        specimenTagJpaRepository.findBySpecimenId(specimenId).stream()
+            .map(entity -> new TagAssignment(entity.getDimensionKey(), entity.getTagKey()))
+            .toList());
+  }
+
+  private List<TagAssignment> normalizeTagAssignments(List<TagAssignment> tags) {
+    if (tags == null || tags.isEmpty()) {
+      return List.of();
+    }
+    return tags.stream()
+        .map(tag -> new TagAssignment(tag.dimensionKey().trim(), tag.tagKey().trim()))
+        .distinct()
+        .sorted(
+            Comparator.comparing(TagAssignment::dimensionKey)
+                .thenComparing(TagAssignment::tagKey))
+        .toList();
+  }
+
+  private boolean tagAssignmentsEqual(List<TagAssignment> left, List<TagAssignment> right) {
+    return normalizeTagAssignments(left).equals(normalizeTagAssignments(right));
+  }
+
+  private String resolveSpecies(List<TagAssignment> tags) {
+    return normalizeTagAssignments(tags).stream()
+        .filter(
+            tag ->
+                specimenContractProperties
+                    .getMatchSpeciesDimensionKey()
+                    .equalsIgnoreCase(tag.dimensionKey()))
+        .map(TagAssignment::tagKey)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private List<String> resolveDiagnosisTags(List<TagAssignment> tags) {
+    return normalizeTagAssignments(tags).stream()
+        .filter(
+            tag ->
+                specimenContractProperties
+                    .getMatchDiagnosisDimensionKey()
+                    .equalsIgnoreCase(tag.dimensionKey()))
+        .map(TagAssignment::tagKey)
+        .distinct()
+        .sorted(Comparator.naturalOrder())
+        .toList();
   }
 
   private void replaceReadmeExcerpts(
@@ -504,6 +669,9 @@ public class SpecimenAdminService {
   }
 
   private void validateTagAssignments(List<TagAssignment> tags) {
+    if (tags == null || tags.isEmpty()) {
+      throw SpecimenExceptions.validation(SpecimenConstants.Message.INVALID_TAG);
+    }
     Set<String> keys = new LinkedHashSet<>();
     for (TagAssignment tag : tags) {
       if (!StringUtils.hasText(tag.dimensionKey()) || !StringUtils.hasText(tag.tagKey())) {
@@ -571,5 +739,8 @@ public class SpecimenAdminService {
       String specimenId, SpecimenStatus status, String reviewedBy, Instant reviewedAt) {}
 
   private record ReviewPayload(SpecimenReviewAction action, String reason) {}
-}
 
+  private record TagUpdatePayload(List<TagAssignment> tags) {}
+
+  private record DeactivatePayload(String reason) {}
+}

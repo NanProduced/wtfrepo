@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -31,6 +32,7 @@ public class JwtOAuthIdentityVerifier implements OAuthIdentityVerifier {
   private final AuthIdentityProofProperties properties;
   private final Clock clock;
 
+  @Autowired
   public JwtOAuthIdentityVerifier(AuthIdentityProofProperties properties) {
     this(properties, Clock.systemUTC());
   }

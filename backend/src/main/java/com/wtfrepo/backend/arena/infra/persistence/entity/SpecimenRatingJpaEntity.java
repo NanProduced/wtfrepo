@@ -68,5 +68,81 @@ public class SpecimenRatingJpaEntity {
     entity.updatedAt = Instant.now();
     return entity;
   }
-}
 
+  public static SpecimenRatingJpaEntity createFromLegacyMetrics(
+      String specimenId, int eloScore, long matchesPlayed) {
+    SpecimenRatingJpaEntity entity = new SpecimenRatingJpaEntity();
+    entity.specimenId = specimenId;
+    entity.eloScore = eloScore;
+    entity.calibratedScore = null;
+    entity.matchesPlayed = toMatchesPlayed(matchesPlayed);
+    entity.ipoStatus = entity.matchesPlayed >= 10 ? ArenaIpoStatus.IPO : ArenaIpoStatus.PRIVATE_BETA;
+    entity.kFactor = resolveKFactor(entity.matchesPlayed);
+    entity.eloOpenToday = eloScore;
+    entity.deltaR7dStddev = null;
+    entity.recentAppearances = 0;
+    entity.updatedAt = Instant.now();
+    return entity;
+  }
+
+  public void applyVoteDelta(int eloDelta) {
+    this.eloScore += eloDelta;
+    this.matchesPlayed += 1;
+
+    if (this.matchesPlayed == 10) {
+      // IPO first-day baseline is established in the same transaction as the 10th vote.
+      this.ipoStatus = ArenaIpoStatus.IPO;
+      this.calibratedScore = this.eloScore;
+      this.eloOpenToday = this.eloScore;
+    }
+
+    this.kFactor = resolveKFactor(this.matchesPlayed);
+    this.updatedAt = Instant.now();
+  }
+
+  public void applyGlobalCorrection(int correction) {
+    this.eloScore += correction;
+    this.updatedAt = Instant.now();
+  }
+
+  public void rollOpenToCurrentElo() {
+    this.eloOpenToday = this.eloScore;
+    this.updatedAt = Instant.now();
+  }
+
+  /**
+   * Refreshes match-profile dependent derived metrics in a single write.
+   *
+   * <p>Both fields are maintained by periodic batch recomputation jobs instead of vote-path
+   * transactional increments, which keeps vote latency stable and avoids lock amplification.
+   */
+  public void refreshMatchProfileMetrics(int recentAppearances, double deltaR7dStddev) {
+    this.recentAppearances = Math.max(0, recentAppearances);
+    this.deltaR7dStddev = sanitizeDeltaR7dStddev(deltaR7dStddev);
+    this.updatedAt = Instant.now();
+  }
+
+  private static int toMatchesPlayed(long matchesPlayed) {
+    if (matchesPlayed <= 0) {
+      return 0;
+    }
+    return matchesPlayed > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) matchesPlayed;
+  }
+
+  private static int resolveKFactor(int matchesPlayed) {
+    if (matchesPlayed < 10) {
+      return 64;
+    }
+    if (matchesPlayed < 30) {
+      return 32;
+    }
+    return 16;
+  }
+
+  private static double sanitizeDeltaR7dStddev(double value) {
+    if (!Double.isFinite(value) || value < 0.0D) {
+      return 0.0D;
+    }
+    return value;
+  }
+}

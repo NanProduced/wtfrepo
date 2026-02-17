@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JOSEException;
@@ -15,15 +17,18 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.wtfrepo.backend.BackendApplication;
+import com.wtfrepo.backend.auth.application.AuthRateLimiter;
 import com.wtfrepo.backend.auth.application.support.AuthConstants;
 import com.wtfrepo.backend.auth.domain.OAuthProvider;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
 import java.time.Instant;
 import java.util.Date;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -38,6 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
       "app.auth.identity-proof.clock-skew=30s",
       "app.auth.identity-proof.max-ttl=5m",
       "app.auth.economy.initial-bug-grant=5",
+      "spring.main.lazy-initialization=true",
       "spring.autoconfigure.exclude="
           + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
           + "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,"
@@ -55,6 +61,15 @@ class AuthControllerTest {
 
   @Autowired
   private ObjectMapper objectMapper;
+
+  @MockBean
+  private AuthRateLimiter authRateLimiter;
+
+  @BeforeEach
+  void setUpRateLimiter() {
+    when(authRateLimiter.allowExchange(anyString())).thenReturn(true);
+    when(authRateLimiter.allowRename(anyString())).thenReturn(true);
+  }
 
   @Test
   void exchangeShouldIssueBackendToken() throws Exception {

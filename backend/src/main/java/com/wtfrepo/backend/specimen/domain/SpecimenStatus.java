@@ -8,6 +8,8 @@ public enum SpecimenStatus {
   PENDING,
   /** Approved and visible to users. */
   ACTIVE,
+  /** Manually taken off shelf after being active. */
+  DEACTIVATED,
   /** Rejected in review; can be edited and re-submitted. */
   REJECTED
 }

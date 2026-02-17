@@ -4,9 +4,6 @@ import java.util.Optional;
 
 /**
  * Store abstraction for arena-readable specimen rating state.
- *
- * <p>TODO(M01-arena): switch backing store from {@code specimen_arena_metrics} to
- * {@code specimen_rating} once schema and module ownership is finalized.
  */
 public interface ArenaSpecimenRatingStore {
 

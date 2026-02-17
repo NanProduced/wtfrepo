@@ -11,12 +11,14 @@ import com.wtfrepo.backend.shared.security.IssuedToken;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Primary
+@ConditionalOnBean(AuthExchangeIdempotencyJpaRepository.class)
 public class JpaAuthExchangeIdempotencyStore implements AuthExchangeIdempotencyStore {
 
   private final AuthExchangeIdempotencyJpaRepository repository;

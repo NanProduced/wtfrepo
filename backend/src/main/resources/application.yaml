@@ -15,6 +15,27 @@ spring:
     open-in-view: false
 
 app:
+  shared:
+    outbox:
+      # Keep JPA outbox write path disabled until entity/schema review is completed.
+      jpa-enabled: ${OUTBOX_JPA_ENABLED:false}
+      # Relay is off by default in MVP stage; enable explicitly when Redis stream infra is ready.
+      relay-enabled: ${OUTBOX_RELAY_ENABLED:false}
+      relay-batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}
+      relay-fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:1000}
+      relay-max-attempts: ${OUTBOX_RELAY_MAX_ATTEMPTS:20}
+      redis-stream-key: ${OUTBOX_REDIS_STREAM_KEY:wtfrepo:outbox:events}
+      # Consumer group skeleton is intentionally disabled until concrete module handlers are ready.
+      consumer-enabled: ${OUTBOX_CONSUMER_ENABLED:false}
+      consumer-group: ${OUTBOX_CONSUMER_GROUP:wtfrepo:outbox:consumer}
+      consumer-name: ${OUTBOX_CONSUMER_NAME:backend-consumer}
+      consumer-batch-size: ${OUTBOX_CONSUMER_BATCH_SIZE:100}
+      consumer-block-ms: ${OUTBOX_CONSUMER_BLOCK_MS:1000}
+      consumer-fixed-delay-ms: ${OUTBOX_CONSUMER_FIXED_DELAY_MS:500}
+      consumer-dedupe-enabled: ${OUTBOX_CONSUMER_DEDUPE_ENABLED:true}
+      consumer-dedupe-retention: ${OUTBOX_CONSUMER_DEDUPE_RETENTION:30d}
+      # Keep unknown event type pending by default to avoid accidental data loss.
+      consumer-ack-unknown-event-type: ${OUTBOX_CONSUMER_ACK_UNKNOWN:false}
   economy:
     policy:
       # TODO(M03-economy): replace with DB + admin-published policy source of truth.
@@ -49,6 +70,9 @@ app:
       battle-ttl: ${ARENA_BATTLE_TTL:10m}
       battle-id-secret: ${ARENA_BATTLE_ID_SECRET:change-this-arena-battle-id-secret}
       settlement-in-progress: ${ARENA_SETTLEMENT_IN_PROGRESS:false}
+    settlement:
+      enabled: ${ARENA_SETTLEMENT_ENABLED:false}
+      snapshot-cron: ${ARENA_SETTLEMENT_SNAPSHOT_CRON:0 0 0 * * *}
     rate-limit:
       duel-anonymous-limit: ${ARENA_DUEL_ANON_LIMIT:60}
       duel-anonymous-window: ${ARENA_DUEL_ANON_WINDOW:1m}
@@ -77,9 +101,31 @@ app:
       diagnosis-base-score: ${ARENA_DIAGNOSIS_BASE_SCORE:15}
       diagnosis-bonus-cap: ${ARENA_DIAGNOSIS_BONUS_CAP:30}
       cooldown-alpha: ${ARENA_MATCH_COOLDOWN_ALPHA:0.3}
+      # Contract baseline: duel reads precomputed pair rows first.
+      pair-first-enabled: ${ARENA_MATCH_PAIR_FIRST_ENABLED:true}
+      # Keep rollback switch for staged rollout and data warm-up windows.
+      runtime-pair-fallback-enabled: ${ARENA_MATCH_RUNTIME_FALLBACK_ENABLED:true}
+      recent-appearance-window: ${ARENA_RECENT_APPEARANCE_WINDOW:24h}
       reset-exclude-threshold: ${ARENA_MATCH_RESET_THRESHOLD:4}
       # Format: "speciesA:speciesB". Repeat this property to configure multiple pairs.
       adjacent-species-pairs: []
+  betting:
+    policy:
+      # TODO(M03-economy): replace property source with admin-published betting policy.
+      min-bet: ${BETTING_MIN_BET:100}
+      rake-rate: ${BETTING_RAKE_RATE:0.10}
+      house-budget: ${BETTING_HOUSE_BUDGET:2000}
+      house-weight-up: ${BETTING_HOUSE_WEIGHT_UP:0.40}
+      house-weight-flat: ${BETTING_HOUSE_WEIGHT_FLAT:0.30}
+      house-weight-down: ${BETTING_HOUSE_WEIGHT_DOWN:0.30}
+      open-time-utc: ${BETTING_OPEN_TIME_UTC:00:05}
+      cutoff-time-utc: ${BETTING_CUTOFF_TIME_UTC:23:30}
+      history-default-limit: ${BETTING_HISTORY_DEFAULT_LIMIT:20}
+      history-max-limit: ${BETTING_HISTORY_MAX_LIMIT:100}
+      dead-zone-threshold: ${BETTING_DEAD_ZONE_THRESHOLD:5}
+      moon-doom-sigma-multiplier: ${BETTING_MOON_DOOM_SIGMA_MULTIPLIER:1.2}
+      policy-version: ${BETTING_POLICY_VERSION:betting-policy-property-v1}
+      policy-source: ${BETTING_POLICY_SOURCE:property}
   specimen:
     contract:
       watchlist-max-items: 200
@@ -87,6 +133,9 @@ app:
       watchlist-max-limit: 50
       admin-idempotency-ttl: 24h
       tag-config-version: tagcfg_2026_02_10_01
+      published-match-profile-version: ${SPECIMEN_MATCH_PROFILE_VERSION:v1.0.0}
+      match-species-dimension-key: ${ARENA_SPECIES_DIMENSION_KEY:species}
+      match-diagnosis-dimension-key: ${ARENA_DIAGNOSIS_DIMENSION_KEY:diagnosis}
       # TODO(M01/M03): move to admin-published arena runtime policy once policy center is ready.
       default-elo: ${ARENA_INITIAL_ELO:1500}
   security:

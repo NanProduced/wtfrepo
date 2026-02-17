@@ -8,6 +8,7 @@ import com.wtfrepo.backend.arena.application.policy.ArenaPolicySnapshot;
 import com.wtfrepo.backend.arena.infra.persistence.entity.BattleVoteJpaEntity;
 import com.wtfrepo.backend.arena.infra.persistence.repository.BattleVoteJpaRepository;
 import java.util.Optional;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 @Primary
+@ConditionalOnBean(BattleVoteJpaRepository.class)
 public class JpaArenaVoteIdempotencyStore implements ArenaVoteIdempotencyStore {
 
   private final BattleVoteJpaRepository repository;

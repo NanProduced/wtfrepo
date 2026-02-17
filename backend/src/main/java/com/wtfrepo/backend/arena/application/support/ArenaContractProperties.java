@@ -29,9 +29,6 @@ public class ArenaContractProperties {
 
   /**
    * Whether vote endpoint should reject writes due to settlement window.
-   *
-   * <p>TODO(M01-arena): replace with scheduler-driven runtime switch.
    */
   private boolean settlementInProgress = false;
 }
-

@@ -4,6 +4,7 @@ import com.wtfrepo.backend.auth.application.AuthContractProperties;
 import com.wtfrepo.backend.auth.application.OAuthStateStore;
 import com.wtfrepo.backend.auth.infra.persistence.entity.OAuthStateJpaEntity;
 import com.wtfrepo.backend.auth.infra.persistence.repository.OAuthStateJpaRepository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Primary
+@ConditionalOnBean(OAuthStateJpaRepository.class)
 public class JpaOAuthStateStore implements OAuthStateStore {
 
   private final OAuthStateJpaRepository repository;

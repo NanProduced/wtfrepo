@@ -7,6 +7,8 @@ import com.wtfrepo.backend.economy.application.EconomyWalletService;
 import com.wtfrepo.backend.economy.application.EconomyWalletService.DeductCommand;
 import com.wtfrepo.backend.economy.application.EconomyWalletService.DeductPolicySnapshot;
 import com.wtfrepo.backend.economy.application.EconomyWalletService.InsufficientBalanceException;
+import com.wtfrepo.backend.economy.infra.persistence.repository.EconomyWalletJpaRepository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Primary
+@ConditionalOnBean(EconomyWalletJpaRepository.class)
 public class M03BackedArenaEconomyPort implements ArenaEconomyPort {
 
   private final EconomyWalletService economyWalletService;
@@ -58,4 +61,3 @@ public class M03BackedArenaEconomyPort implements ArenaEconomyPort {
     return economyWalletService.currentBalance(userId);
   }
 }
-
