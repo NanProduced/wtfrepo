@@ -33,6 +33,7 @@ public final class BettingConstants {
 
     public static final String BET = "BET";
     public static final String HOUSE_STAKE = "HOUSE_STAKE";
+    public static final String SYSTEM = "SYSTEM";
 
     private RefType() {}
   }

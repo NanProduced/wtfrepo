@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Betting APIs for Phase-B P1 endpoints. */
+/** Betting APIs for economy MVP endpoints. */
 @RestController
 @Validated
 @RequestMapping("/api/v1")
@@ -67,6 +67,16 @@ public class BettingController {
     String userId = requireUserId(jwt);
     BettingService.HistoryBetsView view = bettingService.getHistory(userId, cursor, limit);
     return ResponseEntity.ok(BetHistoryResponse.from(view));
+  }
+
+  @GetMapping("/settlement/today")
+  public ResponseEntity<SettlementTodayResponse> settlementToday(
+      @AuthenticationPrincipal Jwt jwt,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) @Min(1) @Max(100) Integer limit) {
+    String userId = requireUserId(jwt);
+    BettingService.SettlementTodayView view = bettingService.getSettlementToday(userId, cursor, limit);
+    return ResponseEntity.ok(SettlementTodayResponse.from(view));
   }
 
   @GetMapping("/specimens/{specimenId}/bet-summary")

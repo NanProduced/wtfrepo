@@ -7,7 +7,13 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.Getter;
 
-/** Economy wallet aggregate root. */
+/**
+ * Economy wallet aggregate root.
+ *
+ * <p>At current MVP stage this table only stores mutable balance. Contract-facing
+ * {@code totalEarned/totalSpent} are computed from {@code economy_ledger} in read path and will
+ * be revisited when schema is frozen for initialization SQL.
+ */
 @Getter
 @Entity
 @Table(name = "economy_wallet")
@@ -50,4 +56,3 @@ public class EconomyWalletJpaEntity {
     return this.balance;
   }
 }
-

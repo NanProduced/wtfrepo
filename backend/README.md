@@ -33,6 +33,15 @@ WTF-Repo 后端服务，提供核心业务 API、排行榜计算、Bug 经济、
 
 > 运行前需准备 PostgreSQL / Redis，配置将通过环境变量或 `application-*.yml` 完成。
 
+### M03 收口联调（Outbox + Settlement）
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=m03-closeout
+```
+
+- 使用 `application-m03-closeout.yaml` 打开 `Outbox(JPA/Relay/Consumer)` 与 `Betting Settlement` 调度开关。
+- 默认仍以 `application.yaml` 为主，收口 profile 仅用于联调与冒烟验证。
+
 ## 文档与需求
 
 需求与设计文档位于仓库 `local-docs/`，请从 `local-docs/00-Index.md` 开始阅读。

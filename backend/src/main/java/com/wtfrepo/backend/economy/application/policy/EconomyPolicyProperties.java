@@ -17,7 +17,8 @@ import org.springframework.stereotype.Component;
 public class EconomyPolicyProperties {
 
   private int dailyClaimAmount = 500;
+  private int voteCost = 100;
+  private int dailyGameBugCap = 2000;
   private String policyVersion = "economy-policy-property-v1";
   private String policySource = "property";
 }
-

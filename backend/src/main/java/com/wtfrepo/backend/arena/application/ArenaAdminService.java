@@ -1,16 +1,24 @@
 package com.wtfrepo.backend.arena.application;
 
 import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
+import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenRatingJpaEntity;
+import com.wtfrepo.backend.arena.infra.persistence.repository.SpecimenRatingJpaRepository;
+import com.wtfrepo.backend.shared.policy.ArenaRuntimePolicyPort;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -18,17 +26,21 @@ import org.springframework.util.StringUtils;
 /**
  * Arena admin operations for match maintenance and quality diagnostics.
  *
- * <p>Phase C2 only provides minimal contract-aligned capabilities:
+ * <p>Current implementation provides contract-aligned capabilities:
  *
  * <ul>
  *   <li>{@code force-recalc}: trigger full rebuild for {@code specimen_match_pair}
+ *   <li>{@code reset-elo}: reset Elo for configurable low-vote subset
  *   <li>{@code match-quality}: report pair coverage/profile consistency for operations
  * </ul>
  */
 @Service
 public class ArenaAdminService {
 
+  private static final Logger log = LoggerFactory.getLogger(ArenaAdminService.class);
+
   private static final String FORCE_RECALC_REASON = "ADMIN_FORCE_RECALC";
+  private static final String RESET_ELO_REASON = "ADMIN_RESET_ELO";
   private static final String UNKNOWN_PROFILE_VERSION = "unknown";
   private static final int RATIO_SCALE = 4;
   private static final int AVERAGE_SCALE = 2;
@@ -36,28 +48,40 @@ public class ArenaAdminService {
   private final ArenaSpecimenMatchPairRebuildService matchPairRebuildService;
   private final ArenaSpecimenMatchReadModel specimenMatchReadModel;
   private final ArenaSpecimenMatchPairReadModel specimenMatchPairReadModel;
+  private final ArenaSpecimenRatingStore arenaSpecimenRatingStore;
+  private final SpecimenRatingJpaRepository specimenRatingJpaRepository;
+  private final ArenaRuntimePolicyPort arenaRuntimePolicyPort;
   private final ArenaMatchProperties arenaMatchProperties;
+  private final ArenaMatchProfilePort arenaMatchProfilePort;
 
   public ArenaAdminService(
       ArenaSpecimenMatchPairRebuildService matchPairRebuildService,
       ArenaSpecimenMatchReadModel specimenMatchReadModel,
       ArenaSpecimenMatchPairReadModel specimenMatchPairReadModel,
-      ArenaMatchProperties arenaMatchProperties) {
+      ArenaSpecimenRatingStore arenaSpecimenRatingStore,
+      SpecimenRatingJpaRepository specimenRatingJpaRepository,
+      ArenaRuntimePolicyPort arenaRuntimePolicyPort,
+      ArenaMatchProperties arenaMatchProperties,
+      ArenaMatchProfilePort arenaMatchProfilePort) {
     this.matchPairRebuildService = matchPairRebuildService;
     this.specimenMatchReadModel = specimenMatchReadModel;
     this.specimenMatchPairReadModel = specimenMatchPairReadModel;
+    this.arenaSpecimenRatingStore = arenaSpecimenRatingStore;
+    this.specimenRatingJpaRepository = specimenRatingJpaRepository;
+    this.arenaRuntimePolicyPort = arenaRuntimePolicyPort;
     this.arenaMatchProperties = arenaMatchProperties;
+    this.arenaMatchProfilePort = arenaMatchProfilePort;
   }
 
   /**
    * Triggers deterministic full rebuild for precomputed pair table.
    *
-   * <p>Current implementation focuses on pair source recalculation because duel matching in Phase C
-   * is pair-first. Elo reset/replay remains in follow-up scope.
+   * <p>Current implementation focuses on pair source recalculation because duel matching is
+   * pair-first.
    */
   @Transactional
   public ForceRecalcResult forceRecalc(String adminUserId, String reason) {
-    String rebuildReason = buildRebuildReason(adminUserId, reason);
+    String rebuildReason = buildOperationReason(FORCE_RECALC_REASON, adminUserId, reason);
     ArenaSpecimenMatchPairRebuildService.PairRebuildResult rebuildResult =
         matchPairRebuildService.rebuildAllPairs(rebuildReason);
     MatchQualityReport qualityReport = evaluateMatchQuality();
@@ -71,10 +95,83 @@ public class ArenaAdminService {
   }
 
   /**
+   * Resets Elo for active specimens while preserving high-vote rows.
+   *
+   * <p>Rows with {@code matchesPlayed >= resetExcludeThreshold} are intentionally skipped to avoid
+   * rewriting mature ratings during emergency maintenance. A threshold of {@code <= 0} disables
+   * exclusion and resets all locked active rows.
+   */
+  @Transactional
+  public ResetEloResult resetElo(String adminUserId, String reason) {
+    String resetReason = buildOperationReason(RESET_ELO_REASON, adminUserId, reason);
+    int targetElo = arenaRuntimePolicyPort.currentArenaRuntimePolicy().initialElo();
+    int resetExcludeThreshold = normalizeResetExcludeThreshold(arenaMatchProperties.getResetExcludeThreshold());
+
+    Set<String> activeSpecimenIds = resolveActiveSpecimenIds();
+    if (activeSpecimenIds.isEmpty()) {
+      MatchQualityReport qualityReport = evaluateMatchQuality();
+      return new ResetEloResult(
+          resetReason,
+          targetElo,
+          resetExcludeThreshold,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          qualityReport);
+    }
+
+    List<SpecimenRatingJpaEntity> lockedRatings = lockActiveRatings(activeSpecimenIds);
+    int missingSpecimens = Math.max(0, activeSpecimenIds.size() - lockedRatings.size());
+
+    int excludedSpecimens = 0;
+    int resetCandidates = 0;
+    int updatedSpecimens = 0;
+    for (SpecimenRatingJpaEntity rating : lockedRatings) {
+      if (shouldExcludeFromReset(rating.getMatchesPlayed(), resetExcludeThreshold)) {
+        excludedSpecimens += 1;
+        continue;
+      }
+      resetCandidates += 1;
+      if (rating.resetEloToBaseline(targetElo)) {
+        updatedSpecimens += 1;
+      }
+    }
+
+    specimenRatingJpaRepository.saveAll(lockedRatings);
+    MatchQualityReport qualityReport = evaluateMatchQuality();
+
+    log.info(
+        "arena_admin_reset_elo reason={} targetElo={} activeSpecimens={} lockedSpecimens={} resetCandidates={} updatedSpecimens={} excludedSpecimens={} missingSpecimens={}",
+        resetReason,
+        targetElo,
+        activeSpecimenIds.size(),
+        lockedRatings.size(),
+        resetCandidates,
+        updatedSpecimens,
+        excludedSpecimens,
+        missingSpecimens);
+
+    return new ResetEloResult(
+        resetReason,
+        targetElo,
+        resetExcludeThreshold,
+        activeSpecimenIds.size(),
+        lockedRatings.size(),
+        resetCandidates,
+        updatedSpecimens,
+        excludedSpecimens,
+        missingSpecimens,
+        qualityReport);
+  }
+
+  /**
    * Builds runtime quality report for current precomputed pair table.
    *
    * <p>This report helps operations validate whether Arena duel inputs are complete and profile
-   * version is consistent with active runtime config.
+   * version is consistent with published M04 match profile config.
    */
   @Transactional(readOnly = true)
   public MatchQualityReport evaluateMatchQuality() {
@@ -87,7 +184,7 @@ public class ArenaAdminService {
     int availablePairCount = pairs.size();
 
     EnumMap<ArenaMatchType, Integer> matchTypeCounters = initializeMatchTypeCounters();
-    Map<String, Integer> profileVersionCounters = new java.util.HashMap<>();
+    Map<String, Integer> profileVersionCounters = new HashMap<>();
 
     boolean hasScore = false;
     int minScore = 0;
@@ -116,7 +213,8 @@ public class ArenaAdminService {
       scoreSum += matchScore;
     }
 
-    String configuredProfileVersion = normalizeProfileVersion(arenaMatchProperties.getProfileVersion());
+    String configuredProfileVersion =
+        normalizeProfileVersion(arenaMatchProfilePort.currentProfile().profileVersion());
     boolean profileVersionAligned =
         resolveProfileVersionAligned(
             configuredProfileVersion,
@@ -138,8 +236,8 @@ public class ArenaAdminService {
         toScoreSummary(hasScore, minScore, maxScore, scoreSum, availablePairCount));
   }
 
-  private String buildRebuildReason(String adminUserId, String reason) {
-    StringBuilder reasonBuilder = new StringBuilder(FORCE_RECALC_REASON);
+  private String buildOperationReason(String operation, String adminUserId, String reason) {
+    StringBuilder reasonBuilder = new StringBuilder(operation);
     if (StringUtils.hasText(adminUserId)) {
       reasonBuilder.append(':').append(adminUserId.trim());
     }
@@ -150,7 +248,7 @@ public class ArenaAdminService {
   }
 
   private Set<String> resolveActiveSpecimenIds() {
-    Set<String> specimenIds = new LinkedHashSet<>();
+    Set<String> specimenIds = new TreeSet<>();
     for (ArenaSpecimenMatchReadModel.SpecimenMatchCandidate candidate :
         specimenMatchReadModel.listActiveCandidates()) {
       if (candidate == null || !StringUtils.hasText(candidate.specimenId())) {
@@ -159,6 +257,28 @@ public class ArenaAdminService {
       specimenIds.add(candidate.specimenId().trim());
     }
     return specimenIds;
+  }
+
+  private List<SpecimenRatingJpaEntity> lockActiveRatings(Set<String> activeSpecimenIds) {
+    List<SpecimenRatingJpaEntity> ratings =
+        specimenRatingJpaRepository.findAllBySpecimenIdInForUpdate(activeSpecimenIds);
+
+    Set<String> missingSpecimenIds = new HashSet<>(activeSpecimenIds);
+    ratings.forEach(rating -> missingSpecimenIds.remove(rating.getSpecimenId()));
+    for (String missingSpecimenId : missingSpecimenIds) {
+      // Bootstrap migration path from legacy metrics if this is an old specimen row.
+      arenaSpecimenRatingStore.findForUpdate(missingSpecimenId);
+    }
+
+    return specimenRatingJpaRepository.findAllBySpecimenIdInForUpdate(activeSpecimenIds);
+  }
+
+  private int normalizeResetExcludeThreshold(int threshold) {
+    return Math.max(0, threshold);
+  }
+
+  private boolean shouldExcludeFromReset(int matchesPlayed, int resetExcludeThreshold) {
+    return resetExcludeThreshold > 0 && matchesPlayed >= resetExcludeThreshold;
   }
 
   private int resolveExpectedPairCount(int activeSpecimenCount) {
@@ -244,6 +364,19 @@ public class ArenaAdminService {
       int activeSpecimens,
       int deletedPairs,
       int upsertedPairs,
+      MatchQualityReport matchQuality) {}
+
+  /** Reset-elo execution summary. */
+  public record ResetEloResult(
+      String resetReason,
+      int targetElo,
+      int resetExcludeThreshold,
+      int activeSpecimens,
+      int lockedSpecimens,
+      int resetCandidates,
+      int updatedSpecimens,
+      int excludedSpecimens,
+      int missingSpecimens,
       MatchQualityReport matchQuality) {}
 
   /** Match-quality report used by Arena admin diagnostics. */

@@ -2,12 +2,20 @@ package com.wtfrepo.backend.arena.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfileSnapshot;
 import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
+import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenRatingJpaEntity;
+import com.wtfrepo.backend.arena.infra.persistence.repository.SpecimenRatingJpaRepository;
+import com.wtfrepo.backend.shared.policy.ArenaRuntimePolicy;
+import com.wtfrepo.backend.shared.policy.ArenaRuntimePolicyPort;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,20 +36,34 @@ class ArenaAdminServiceTest {
   @Mock
   private ArenaSpecimenMatchPairReadModel specimenMatchPairReadModel;
 
+  @Mock
+  private ArenaSpecimenRatingStore arenaSpecimenRatingStore;
+
+  @Mock
+  private SpecimenRatingJpaRepository specimenRatingJpaRepository;
+
+  @Mock
+  private ArenaRuntimePolicyPort arenaRuntimePolicyPort;
+
   private ArenaAdminService service;
 
   @BeforeEach
   void setUp() {
     ArenaMatchProperties arenaMatchProperties = new ArenaMatchProperties();
-    arenaMatchProperties.setProfileVersion("v1.0.0");
     arenaMatchProperties.setResetExcludeThreshold(4);
+    ArenaMatchProfilePort matchProfilePort =
+        () -> new ArenaMatchProfileSnapshot("v1.0.0", "species", "diagnosis");
 
     service =
         new ArenaAdminService(
             matchPairRebuildService,
             specimenMatchReadModel,
             specimenMatchPairReadModel,
-            arenaMatchProperties);
+            arenaSpecimenRatingStore,
+            specimenRatingJpaRepository,
+            arenaRuntimePolicyPort,
+            arenaMatchProperties,
+            matchProfilePort);
   }
 
   @Test
@@ -80,6 +102,43 @@ class ArenaAdminServiceTest {
     assertThat(report.pairCoverageRatio()).isEqualByComparingTo(new BigDecimal("1.0000"));
     assertThat(report.profileVersionAligned()).isTrue();
     assertThat(report.scoreSummary().averageScore()).isEqualByComparingTo(new BigDecimal("73.33"));
+  }
+
+  @Test
+  void shouldResetEloForLowVoteActiveSpecimensOnly() {
+    when(arenaRuntimePolicyPort.currentArenaRuntimePolicy())
+        .thenReturn(new ArenaRuntimePolicy(Duration.ofMinutes(10), false, 1500));
+    when(specimenMatchReadModel.listActiveCandidates())
+        .thenReturn(List.of(candidate("spm_a"), candidate("spm_b")));
+
+    SpecimenRatingJpaEntity lowVoteEntity =
+        SpecimenRatingJpaEntity.createFromLegacyMetrics("spm_a", 1730, 3);
+    SpecimenRatingJpaEntity highVoteEntity =
+        SpecimenRatingJpaEntity.createFromLegacyMetrics("spm_b", 1680, 4);
+
+    when(specimenRatingJpaRepository.findAllBySpecimenIdInForUpdate(org.mockito.ArgumentMatchers.<String>anyCollection()))
+        .thenReturn(List.of(lowVoteEntity, highVoteEntity), List.of(lowVoteEntity, highVoteEntity));
+    when(specimenMatchPairReadModel.listActivePairs()).thenReturn(List.of());
+
+    ArenaAdminService.ResetEloResult result = service.resetElo("admin_1", "incident-recover");
+
+    assertThat(result.resetReason()).isEqualTo("ADMIN_RESET_ELO:admin_1:incident-recover");
+    assertThat(result.targetElo()).isEqualTo(1500);
+    assertThat(result.resetExcludeThreshold()).isEqualTo(4);
+    assertThat(result.activeSpecimens()).isEqualTo(2);
+    assertThat(result.lockedSpecimens()).isEqualTo(2);
+    assertThat(result.resetCandidates()).isEqualTo(1);
+    assertThat(result.updatedSpecimens()).isEqualTo(1);
+    assertThat(result.excludedSpecimens()).isEqualTo(1);
+    assertThat(result.missingSpecimens()).isEqualTo(0);
+
+    assertThat(lowVoteEntity.getEloScore()).isEqualTo(1500);
+    assertThat(lowVoteEntity.getEloOpenToday()).isEqualTo(1500);
+    assertThat(highVoteEntity.getEloScore()).isEqualTo(1680);
+    assertThat(highVoteEntity.getEloOpenToday()).isEqualTo(1680);
+
+    verify(arenaSpecimenRatingStore, never()).findForUpdate(anyString());
+    verify(specimenRatingJpaRepository).saveAll(List.of(lowVoteEntity, highVoteEntity));
   }
 
   @Test

@@ -1,7 +1,8 @@
 package com.wtfrepo.backend.arena.infra.persistence.adapter;
 
 import com.wtfrepo.backend.arena.application.ArenaSpecimenMatchReadModel;
-import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfileSnapshot;
 import com.wtfrepo.backend.specimen.domain.SpecimenStatus;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenGithubMetadataJpaEntity;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenJpaEntity;
@@ -33,19 +34,19 @@ public class JpaArenaSpecimenMatchReadModel implements ArenaSpecimenMatchReadMod
   private final SpecimenTagJpaRepository specimenTagJpaRepository;
   private final SpecimenOfficialCommentaryJpaRepository specimenOfficialCommentaryJpaRepository;
   private final SpecimenGithubMetadataJpaRepository specimenGithubMetadataJpaRepository;
-  private final ArenaMatchProperties matchProperties;
+  private final ArenaMatchProfilePort arenaMatchProfilePort;
 
   public JpaArenaSpecimenMatchReadModel(
       SpecimenJpaRepository specimenJpaRepository,
       SpecimenTagJpaRepository specimenTagJpaRepository,
       SpecimenOfficialCommentaryJpaRepository specimenOfficialCommentaryJpaRepository,
       SpecimenGithubMetadataJpaRepository specimenGithubMetadataJpaRepository,
-      ArenaMatchProperties matchProperties) {
+      ArenaMatchProfilePort arenaMatchProfilePort) {
     this.specimenJpaRepository = specimenJpaRepository;
     this.specimenTagJpaRepository = specimenTagJpaRepository;
     this.specimenOfficialCommentaryJpaRepository = specimenOfficialCommentaryJpaRepository;
     this.specimenGithubMetadataJpaRepository = specimenGithubMetadataJpaRepository;
-    this.matchProperties = matchProperties;
+    this.arenaMatchProfilePort = arenaMatchProfilePort;
   }
 
   @Override
@@ -85,6 +86,8 @@ public class JpaArenaSpecimenMatchReadModel implements ArenaSpecimenMatchReadMod
                 (map, tag) -> map.computeIfAbsent(tag.getSpecimenId(), ignored -> new java.util.ArrayList<>()).add(tag),
                 LinkedHashMap::putAll);
 
+    ArenaMatchProfileSnapshot profileSnapshot = arenaMatchProfilePort.currentProfile();
+
     return activeSpecimens.stream()
         .map(
             specimen ->
@@ -92,7 +95,8 @@ public class JpaArenaSpecimenMatchReadModel implements ArenaSpecimenMatchReadMod
                     specimen,
                     tagsBySpecimenId.getOrDefault(specimen.getSpecimenId(), List.of()),
                     commentaryBySpecimenId.get(specimen.getSpecimenId()),
-                    metadataBySpecimenId.get(specimen.getSpecimenId())))
+                    metadataBySpecimenId.get(specimen.getSpecimenId()),
+                    profileSnapshot))
         .filter(java.util.Objects::nonNull)
         .toList();
   }
@@ -101,10 +105,16 @@ public class JpaArenaSpecimenMatchReadModel implements ArenaSpecimenMatchReadMod
       SpecimenJpaEntity specimen,
       List<SpecimenTagJpaEntity> tags,
       SpecimenOfficialCommentaryJpaEntity commentary,
-      SpecimenGithubMetadataJpaEntity metadata) {
+      SpecimenGithubMetadataJpaEntity metadata,
+      ArenaMatchProfileSnapshot profileSnapshot) {
+
     String species =
         tags.stream()
-            .filter(tag -> matchProperties.getSpeciesDimensionKey().equalsIgnoreCase(tag.getDimensionKey()))
+            .filter(
+                tag ->
+                    profileSnapshot
+                        .speciesDimensionKey()
+                        .equalsIgnoreCase(tag.getDimensionKey()))
             .map(SpecimenTagJpaEntity::getTagKey)
             .findFirst()
             .orElse(null);
@@ -115,7 +125,11 @@ public class JpaArenaSpecimenMatchReadModel implements ArenaSpecimenMatchReadMod
 
     List<String> diagnosisTags =
         tags.stream()
-            .filter(tag -> matchProperties.getDiagnosisDimensionKey().equalsIgnoreCase(tag.getDimensionKey()))
+            .filter(
+                tag ->
+                    profileSnapshot
+                        .diagnosisDimensionKey()
+                        .equalsIgnoreCase(tag.getDimensionKey()))
             .map(SpecimenTagJpaEntity::getTagKey)
             .filter(StringUtils::hasText)
             .distinct()

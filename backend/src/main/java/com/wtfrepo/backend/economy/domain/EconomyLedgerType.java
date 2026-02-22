@@ -4,6 +4,7 @@ package com.wtfrepo.backend.economy.domain;
 public enum EconomyLedgerType {
   ARENA_VOTE_COST,
   DAILY_CLAIM,
+  GAME_REWARD,
   BET,
   BET_WIN,
   HOUSE_STAKE,

@@ -40,6 +40,8 @@ app:
     policy:
       # TODO(M03-economy): replace with DB + admin-published policy source of truth.
       daily-claim-amount: ${ECONOMY_DAILY_CLAIM_AMOUNT:500}
+      vote-cost: ${ECONOMY_VOTE_COST:100}
+      daily-game-bug-cap: ${ECONOMY_DAILY_GAME_BUG_CAP:2000}
       policy-version: ${ECONOMY_POLICY_VERSION:economy-policy-property-v1}
       policy-source: ${ECONOMY_POLICY_SOURCE:property}
   auth:
@@ -50,8 +52,9 @@ app:
       clock-skew: ${AUTH_IDENTITY_PROOF_CLOCK_SKEW:60s}
       max-ttl: ${AUTH_IDENTITY_PROOF_MAX_TTL:5m}
     economy:
-      # TODO(M03-economy): replace with economy module source-of-truth policy publishing (DB + admin).
-      # Keep this as a temporary fallback only while economy module is not implemented.
+      # TODO(M03-economy): source bootstrap grant from DB + admin-published policy center.
+      # Economy module is already online; this property remains as a temporary compatibility bridge
+      # for Auth token-exchange bootstrap flow until policy center is introduced.
       initial-bug-grant: ${AUTH_INITIAL_BUG_GRANT:1000}
     contract:
       oauth-state-ttl: 10m
@@ -126,6 +129,16 @@ app:
       moon-doom-sigma-multiplier: ${BETTING_MOON_DOOM_SIGMA_MULTIPLIER:1.2}
       policy-version: ${BETTING_POLICY_VERSION:betting-policy-property-v1}
       policy-source: ${BETTING_POLICY_SOURCE:property}
+    settlement:
+      # Keep scheduler off by default for safer local rollout.
+      enabled: ${BETTING_SETTLEMENT_ENABLED:false}
+      # Default runs after UTC 00:00 so Arena daily snapshot jobs can finish first.
+      orchestrator-cron: ${BETTING_SETTLEMENT_ORCHESTRATOR_CRON:30 0 0 * * *}
+      # Retry/fallback controls (default: 3 retries + exponential backoff).
+      retry-max-attempts: ${BETTING_SETTLEMENT_RETRY_MAX_ATTEMPTS:3}
+      retry-initial-backoff-ms: ${BETTING_SETTLEMENT_RETRY_INITIAL_BACKOFF_MS:0}
+      retry-max-backoff-ms: ${BETTING_SETTLEMENT_RETRY_MAX_BACKOFF_MS:2000}
+      retry-deadline-seconds: ${BETTING_SETTLEMENT_RETRY_DEADLINE_SECONDS:300}
   specimen:
     contract:
       watchlist-max-items: 200

@@ -15,7 +15,10 @@ public class PropertyBackedEconomyPolicyPort implements EconomyPolicyPort {
   @Override
   public EconomyPolicySnapshot currentPolicySnapshot() {
     return new EconomyPolicySnapshot(
-        properties.getDailyClaimAmount(), properties.getPolicyVersion(), properties.getPolicySource());
+        properties.getDailyClaimAmount(),
+        properties.getVoteCost(),
+        properties.getDailyGameBugCap(),
+        properties.getPolicyVersion(),
+        properties.getPolicySource());
   }
 }
-

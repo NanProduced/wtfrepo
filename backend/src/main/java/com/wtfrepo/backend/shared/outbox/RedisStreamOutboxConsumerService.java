@@ -89,9 +89,9 @@ public class RedisStreamOutboxConsumerService {
         continue;
       }
 
-      OutboxStreamEventHandler handler = handlerRegistry.find(message.eventType()).orElse(null);
+      List<OutboxStreamEventHandler> handlers = handlerRegistry.findAll(message.eventType());
 
-      if (handler == null) {
+      if (handlers.isEmpty()) {
         unknownCount++;
         log.warn(
             "outbox_stream_no_handler eventType={} eventId={} recordId={}",
@@ -106,7 +106,11 @@ public class RedisStreamOutboxConsumerService {
       }
 
       try {
-        handler.handle(message);
+        // Fan-out dispatch: all handlers for the same eventType run before ack.
+        // On any handler failure we keep the message pending for retry (handlers must be idempotent).
+        for (OutboxStreamEventHandler handler : handlers) {
+          handler.handle(message);
+        }
         markProcessed(message);
         acknowledge(record);
         consumedCount++;

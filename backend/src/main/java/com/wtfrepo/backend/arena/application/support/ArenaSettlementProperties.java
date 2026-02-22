@@ -20,7 +20,7 @@ public class ArenaSettlementProperties {
   private boolean enabled = false;
 
   /**
-   * UTC cron for running phase A/B settlement.
+   * UTC cron for running daily snapshot and correction settlement.
    *
    * <p>Contract target is UTC 00:00.
    */

@@ -115,6 +115,74 @@ class BettingControllerTest {
   }
 
   @Test
+  void settlementToday_shouldReturnGroupedPayload() throws Exception {
+    when(bettingService.getSettlementToday(eq("usr_1"), eq("bet_ord_456"), eq(20)))
+        .thenReturn(
+            new BettingService.SettlementTodayView(
+                LocalDate.parse("2026-02-11"),
+                List.of(
+                    new BettingService.SettlementItem(
+                        "sp_003",
+                        "wenyan-lang",
+                        1512,
+                        1530,
+                        18,
+                        "UP",
+                        true,
+                        List.of(
+                            new BettingService.SettlementOrderItem(
+                                "bet_ord_455", "UP", 500, "WON", 1600L, 120L)))),
+                "bet_ord_454",
+                true));
+
+    mockMvc
+        .perform(
+            get("/api/v1/settlement/today")
+                .with(jwt().jwt(jwt -> jwt.subject("usr_1")))
+                .param("cursor", "bet_ord_456")
+                .param("limit", "20"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.date").value("2026-02-11"))
+        .andExpect(jsonPath("$.settlements[0].specimenId").value("sp_003"))
+        .andExpect(jsonPath("$.settlements[0].specimenTitle").value("wenyan-lang"))
+        .andExpect(jsonPath("$.settlements[0].eloOpen").value(1512))
+        .andExpect(jsonPath("$.settlements[0].eloClose").value(1530))
+        .andExpect(jsonPath("$.settlements[0].deltaR").value(18))
+        .andExpect(jsonPath("$.settlements[0].outcome").value("UP"))
+        .andExpect(jsonPath("$.settlements[0].isMoonDoom").value(true))
+        .andExpect(jsonPath("$.settlements[0].myOrders[0].orderId").value("bet_ord_455"))
+        .andExpect(jsonPath("$.settlements[0].myOrders[0].direction").value("UP"))
+        .andExpect(jsonPath("$.settlements[0].myOrders[0].amount").value(500))
+        .andExpect(jsonPath("$.settlements[0].myOrders[0].status").value("WON"))
+        .andExpect(jsonPath("$.settlements[0].myOrders[0].payout").value(1600))
+        .andExpect(jsonPath("$.settlements[0].myOrders[0].moonDoomBonus").value(120))
+        .andExpect(jsonPath("$.nextCursor").value("bet_ord_454"))
+        .andExpect(jsonPath("$.hasMore").value(true));
+  }
+
+
+  @Test
+  void settlementToday_shouldRejectInvalidLimit() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/v1/settlement/today")
+                .with(jwt().jwt(jwt -> jwt.subject("usr_1")))
+                .param("limit", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/settlement/today")
+                .with(jwt().jwt(jwt -> jwt.subject("usr_1")))
+                .param("limit", "101"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+    verifyNoInteractions(bettingService);
+  }
+
+  @Test
   void placeBet_shouldRejectInvalidPayload() throws Exception {
     mockMvc
         .perform(

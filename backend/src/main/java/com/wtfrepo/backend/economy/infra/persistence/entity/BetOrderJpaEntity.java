@@ -140,6 +140,40 @@ public class BetOrderJpaEntity {
     return requestFingerprint.equals(fingerprint);
   }
 
+  /**
+   * Marks order as force-settled with full principal refund semantics.
+   *
+   * <p>Per betting contract, force-settle does not evaluate direction. All pending orders are
+   * cancelled and principal amount is returned to users via wallet ledger.
+   */
+  public void markCancelledForForceSettle(Instant settledAt) {
+    this.status = BetOrderStatus.CANCELLED;
+    this.payout = (long) amount;
+    this.moonDoomBonus = 0L;
+    this.settledAt = settledAt;
+  }
+
+  /**
+   * Marks order as settled and won.
+   *
+   * <p>{@code payout} includes principal and parimutuel share; {@code moonDoomBonus} is tracked
+   * separately to preserve contract-aligned accounting visibility.
+   */
+  public void markWon(long payout, long moonDoomBonus, Instant settledAt) {
+    this.status = BetOrderStatus.WON;
+    this.payout = Math.max(0L, payout);
+    this.moonDoomBonus = Math.max(0L, moonDoomBonus);
+    this.settledAt = settledAt;
+  }
+
+  /** Marks order as settled and lost, with zero payout. */
+  public void markLost(Instant settledAt) {
+    this.status = BetOrderStatus.LOST;
+    this.payout = 0L;
+    this.moonDoomBonus = 0L;
+    this.settledAt = settledAt;
+  }
+
   private static String newOrderId() {
     return "bet_ord_" + UUID.randomUUID().toString().replace("-", "");
   }

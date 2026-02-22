@@ -7,6 +7,8 @@ import com.wtfrepo.backend.arena.application.economy.ArenaEconomyPort;
 import com.wtfrepo.backend.arena.application.economy.ArenaEconomyProperties;
 import com.wtfrepo.backend.arena.application.economy.PropertyBackedArenaPolicyPort;
 import com.wtfrepo.backend.arena.application.policy.ArenaPolicySnapshot;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfileSnapshot;
 import com.wtfrepo.backend.arena.application.support.ArenaBattleIdVerifier;
 import com.wtfrepo.backend.arena.application.support.ArenaConstants;
 import com.wtfrepo.backend.arena.application.support.ArenaContractProperties;
@@ -36,6 +38,8 @@ class ArenaDuelServiceTest {
   private RecordingEconomyPort economyPort;
   private ArenaBattleIdVerifier battleIdVerifier;
   private ArenaMatchProperties arenaMatchProperties;
+  private String publishedProfileVersion;
+  private ArenaMatchProfilePort matchProfilePort;
   private AlwaysAllowRateLimiter rateLimiter;
   private PropertyBackedArenaPolicyPort policyPort;
 
@@ -61,6 +65,9 @@ class ArenaDuelServiceTest {
     arenaMatchProperties.setResetExcludeThreshold(2);
     arenaMatchProperties.setPairFirstEnabled(true);
     arenaMatchProperties.setRuntimePairFallbackEnabled(true);
+    publishedProfileVersion = "pair-profile-v1";
+    matchProfilePort =
+        () -> new ArenaMatchProfileSnapshot(publishedProfileVersion, "species", "diagnosis");
 
     readModel = new InMemorySpecimenMatchReadModel();
     readModel.seed(
@@ -136,7 +143,8 @@ class ArenaDuelServiceTest {
             economyPort,
             rateLimiter,
             new InMemoryFeaturedDuelStore(),
-            arenaMatchProperties);
+            arenaMatchProperties,
+            matchProfilePort);
   }
 
   @Test
@@ -210,7 +218,7 @@ class ArenaDuelServiceTest {
   @Test
   void shouldFallbackToRuntimeCompositionWhenPrecomputedPairsMissing() {
     pairReadModel.clear();
-    arenaMatchProperties.setProfileVersion("runtime-profile-v2");
+    publishedProfileVersion = "runtime-profile-v2";
     arenaMatchProperties.setRuntimePairFallbackEnabled(true);
 
     ArenaDuelService.DuelResult result =
@@ -249,7 +257,8 @@ class ArenaDuelServiceTest {
             economyPort,
             new BlockAnonymousRateLimiter(),
             new InMemoryFeaturedDuelStore(),
-            arenaMatchProperties);
+            arenaMatchProperties,
+            matchProfilePort);
 
     assertThatThrownBy(
             () ->
@@ -279,7 +288,7 @@ class ArenaDuelServiceTest {
             economyPort,
             policyPort,
             new NoopOutboxStore(),
-            arenaMatchProperties);
+            matchProfilePort);
 
     ArenaVoteService.VoteResult voteResult =
         voteService.vote(
@@ -316,7 +325,8 @@ class ArenaDuelServiceTest {
             economyPort,
             rateLimiter,
             new InMemoryFeaturedDuelStore(),
-            new ArenaMatchProperties());
+            new ArenaMatchProperties(),
+            matchProfilePort);
 
     assertThatThrownBy(
             () ->

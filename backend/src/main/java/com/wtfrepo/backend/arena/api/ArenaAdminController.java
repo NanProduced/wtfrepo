@@ -21,8 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Arena admin endpoints for maintenance operations and diagnostics.
  *
- * <p>Phase C2 scope: {@code force-recalc} + {@code match-quality}. Other admin actions are kept
- * for follow-up phases.
+ * <p>Current scope includes {@code force-recalc}, {@code reset-elo}, and {@code match-quality}.
  */
 @RestController
 @Validated
@@ -46,6 +45,17 @@ public class ArenaAdminController {
     return ResponseEntity.ok(ForceRecalcResponse.from(result));
   }
 
+  @PostMapping("/reset-elo")
+  public ResponseEntity<ResetEloResponse> resetElo(
+      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
+      @AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody(required = false) ResetEloRequest request) {
+    String adminUserId = ArenaAdminApiSupport.requireAdminUserId(jwt);
+    String reason = request == null ? null : request.reason();
+    ArenaAdminService.ResetEloResult result = arenaAdminService.resetElo(adminUserId, reason);
+    return ResponseEntity.ok(ResetEloResponse.from(result));
+  }
+
   @GetMapping("/match-quality")
   public ResponseEntity<MatchQualityResponse> matchQuality(
       @RequestHeader(name = RequestIdConstants.HEADER_NAME, required = false) String requestId,
@@ -62,6 +72,13 @@ public class ArenaAdminController {
    */
   public record ForceRecalcRequest(@Size(max = 200) String reason) {}
 
+  /**
+   * Optional admin note for reset-elo operation.
+   *
+   * <p>Used only for audit/log context; reset parameters come from runtime policy and match config.
+   */
+  public record ResetEloRequest(@Size(max = 200) String reason) {}
+
   public record ForceRecalcResponse(
       String rebuildReason,
       int activeSpecimens,
@@ -75,6 +92,33 @@ public class ArenaAdminController {
           result.activeSpecimens(),
           result.deletedPairs(),
           result.upsertedPairs(),
+          MatchQualityResponse.from(result.matchQuality()));
+    }
+  }
+
+  public record ResetEloResponse(
+      String resetReason,
+      int targetElo,
+      int resetExcludeThreshold,
+      int activeSpecimens,
+      int lockedSpecimens,
+      int resetCandidates,
+      int updatedSpecimens,
+      int excludedSpecimens,
+      int missingSpecimens,
+      MatchQualityResponse matchQuality) {
+
+    static ResetEloResponse from(ArenaAdminService.ResetEloResult result) {
+      return new ResetEloResponse(
+          result.resetReason(),
+          result.targetElo(),
+          result.resetExcludeThreshold(),
+          result.activeSpecimens(),
+          result.lockedSpecimens(),
+          result.resetCandidates(),
+          result.updatedSpecimens(),
+          result.excludedSpecimens(),
+          result.missingSpecimens(),
           MatchQualityResponse.from(result.matchQuality()));
     }
   }

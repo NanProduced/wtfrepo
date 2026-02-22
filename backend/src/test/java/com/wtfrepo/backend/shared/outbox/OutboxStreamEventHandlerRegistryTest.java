@@ -1,7 +1,6 @@
 package com.wtfrepo.backend.shared.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -14,17 +13,21 @@ class OutboxStreamEventHandlerRegistryTest {
     OutboxStreamEventHandlerRegistry registry = new OutboxStreamEventHandlerRegistry(List.of(handler));
 
     assertThat(registry.find("VoteCompletedEvent")).contains(handler);
+    assertThat(registry.findAll("VoteCompletedEvent")).containsExactly(handler);
     assertThat(registry.handlerCount()).isEqualTo(1);
+    assertThat(registry.eventTypeCount()).isEqualTo(1);
   }
 
   @Test
-  void shouldRejectDuplicateEventTypeBindings() {
+  void shouldSupportMultipleHandlersForSameEventType() {
     OutboxStreamEventHandler left = new StubHandler("DailySnapshotCreatedEvent");
     OutboxStreamEventHandler right = new StubHandler("DailySnapshotCreatedEvent");
+    OutboxStreamEventHandlerRegistry registry =
+        new OutboxStreamEventHandlerRegistry(List.of(left, right));
 
-    assertThatThrownBy(() -> new OutboxStreamEventHandlerRegistry(List.of(left, right)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Duplicate outbox stream handler");
+    assertThat(registry.findAll("DailySnapshotCreatedEvent")).containsExactly(left, right);
+    assertThat(registry.handlerCount()).isEqualTo(2);
+    assertThat(registry.eventTypeCount()).isEqualTo(1);
   }
 
   private static final class StubHandler implements OutboxStreamEventHandler {

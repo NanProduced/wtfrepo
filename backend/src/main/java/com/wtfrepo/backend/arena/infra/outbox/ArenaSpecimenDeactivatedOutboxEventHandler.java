@@ -9,16 +9,17 @@ import org.springframework.stereotype.Component;
 
 /** Handles M04 {@code SpecimenDeactivatedEvent} for pair cleanup. */
 @Component
-public class SpecimenDeactivatedOutboxEventHandler implements OutboxStreamEventHandler {
+public class ArenaSpecimenDeactivatedOutboxEventHandler implements OutboxStreamEventHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(SpecimenDeactivatedOutboxEventHandler.class);
+  private static final Logger log =
+      LoggerFactory.getLogger(ArenaSpecimenDeactivatedOutboxEventHandler.class);
 
   private static final String EVENT_TYPE = "SpecimenDeactivatedEvent";
 
   private final ArenaOutboxPayloadReader payloadReader;
   private final ArenaSpecimenMatchPairRebuildService rebuildService;
 
-  public SpecimenDeactivatedOutboxEventHandler(
+  public ArenaSpecimenDeactivatedOutboxEventHandler(
       ArenaOutboxPayloadReader payloadReader,
       ArenaSpecimenMatchPairRebuildService rebuildService) {
     this.payloadReader = payloadReader;

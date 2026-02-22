@@ -3,10 +3,10 @@ package com.wtfrepo.backend.arena.application;
 import com.wtfrepo.backend.arena.application.economy.ArenaEconomyPort;
 import com.wtfrepo.backend.arena.application.economy.ArenaPolicyPort;
 import com.wtfrepo.backend.arena.application.policy.ArenaPolicySnapshot;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
 import com.wtfrepo.backend.arena.application.support.ArenaBattleIdVerifier;
 import com.wtfrepo.backend.arena.application.support.ArenaConstants;
 import com.wtfrepo.backend.arena.application.support.ArenaExceptions;
-import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaEloCalculator;
 import com.wtfrepo.backend.arena.domain.ArenaVoteWinner;
 import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
@@ -33,7 +33,7 @@ public class ArenaVoteService {
   private final ArenaEconomyPort arenaEconomyPort;
   private final ArenaRuntimePolicyPort arenaRuntimePolicyPort;
   private final OutboxEventStore outboxEventStore;
-  private final ArenaMatchProperties arenaMatchProperties;
+  private final ArenaMatchProfilePort arenaMatchProfilePort;
 
   public ArenaVoteService(
       ArenaVoteIdempotencyStore idempotencyStore,
@@ -43,7 +43,7 @@ public class ArenaVoteService {
       ArenaEconomyPort arenaEconomyPort,
       ArenaRuntimePolicyPort arenaRuntimePolicyPort,
       OutboxEventStore outboxEventStore,
-      ArenaMatchProperties arenaMatchProperties) {
+      ArenaMatchProfilePort arenaMatchProfilePort) {
     this.idempotencyStore = idempotencyStore;
     this.battleIdVerifier = battleIdVerifier;
     this.arenaSpecimenRatingStore = arenaSpecimenRatingStore;
@@ -51,7 +51,7 @@ public class ArenaVoteService {
     this.arenaEconomyPort = arenaEconomyPort;
     this.arenaRuntimePolicyPort = arenaRuntimePolicyPort;
     this.outboxEventStore = outboxEventStore;
-    this.arenaMatchProperties = arenaMatchProperties;
+    this.arenaMatchProfilePort = arenaMatchProfilePort;
   }
 
   @Transactional
@@ -115,6 +115,8 @@ public class ArenaVoteService {
             0L,
             policySnapshot);
 
+    String matchProfileVersion = normalizeProfileVersion(arenaMatchProfilePort.currentProfile().profileVersion());
+
     Optional<VoteResult> replayed =
         persistVoteFact(
             new ArenaVoteIdempotencyStore.PersistVoteCommand(
@@ -134,7 +136,7 @@ public class ArenaVoteService {
                 eloResult.rightKFactor(),
                 // Match metadata is sourced from signed battleId payload and snapshotted for audit.
                 battle.matchType(),
-                arenaMatchProperties.getProfileVersion(),
+                matchProfileVersion,
                 policySnapshot,
                 provisionalResult));
     if (replayed.isPresent()) {
@@ -320,6 +322,13 @@ public class ArenaVoteService {
       }
       throw ex;
     }
+  }
+
+  private String normalizeProfileVersion(String profileVersion) {
+    if (!org.springframework.util.StringUtils.hasText(profileVersion)) {
+      return "unknown";
+    }
+    return profileVersion.trim();
   }
 
   public record VoteCommand(String battleId, String winner) {}

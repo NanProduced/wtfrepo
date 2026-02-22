@@ -3,6 +3,7 @@ package com.wtfrepo.backend.arena.application;
 import com.wtfrepo.backend.arena.application.economy.ArenaEconomyPort;
 import com.wtfrepo.backend.arena.application.economy.ArenaPolicyPort;
 import com.wtfrepo.backend.arena.application.policy.ArenaPolicySnapshot;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
 import com.wtfrepo.backend.arena.application.support.ArenaBattleIdVerifier;
 import com.wtfrepo.backend.arena.application.support.ArenaConstants;
 import com.wtfrepo.backend.arena.application.support.ArenaExceptions;
@@ -38,6 +39,7 @@ public class ArenaDuelService {
   private final ArenaRateLimiter arenaRateLimiter;
   private final ArenaFeaturedDuelStore arenaFeaturedDuelStore;
   private final ArenaMatchProperties arenaMatchProperties;
+  private final ArenaMatchProfilePort arenaMatchProfilePort;
 
   public ArenaDuelService(
       ArenaSpecimenMatchReadModel specimenMatchReadModel,
@@ -48,7 +50,8 @@ public class ArenaDuelService {
       ArenaEconomyPort arenaEconomyPort,
       ArenaRateLimiter arenaRateLimiter,
       ArenaFeaturedDuelStore arenaFeaturedDuelStore,
-      ArenaMatchProperties arenaMatchProperties) {
+      ArenaMatchProperties arenaMatchProperties,
+      ArenaMatchProfilePort arenaMatchProfilePort) {
     this.specimenMatchReadModel = specimenMatchReadModel;
     this.specimenMatchPairReadModel = specimenMatchPairReadModel;
     this.arenaSpecimenRatingStore = arenaSpecimenRatingStore;
@@ -58,6 +61,7 @@ public class ArenaDuelService {
     this.arenaRateLimiter = arenaRateLimiter;
     this.arenaFeaturedDuelStore = arenaFeaturedDuelStore;
     this.arenaMatchProperties = arenaMatchProperties;
+    this.arenaMatchProfilePort = arenaMatchProfilePort;
   }
 
   @Transactional(readOnly = true)
@@ -394,8 +398,9 @@ public class ArenaDuelService {
     if (StringUtils.hasText(pairProfileVersion)) {
       return pairProfileVersion.trim();
     }
-    if (StringUtils.hasText(arenaMatchProperties.getProfileVersion())) {
-      return arenaMatchProperties.getProfileVersion().trim();
+    String publishedProfileVersion = arenaMatchProfilePort.currentProfile().profileVersion();
+    if (StringUtils.hasText(publishedProfileVersion)) {
+      return publishedProfileVersion.trim();
     }
     return "unknown";
   }

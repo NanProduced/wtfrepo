@@ -111,6 +111,22 @@ public class SpecimenRatingJpaEntity {
   }
 
   /**
+   * Resets mutable Elo fields to a deterministic baseline.
+   *
+   * <p>This admin-only operation intentionally keeps historical counters and IPO metadata unchanged
+   * so downstream audit and lifecycle states remain traceable.
+   *
+   * @return {@code true} when persisted fields are changed.
+   */
+  public boolean resetEloToBaseline(int targetElo) {
+    boolean changed = this.eloScore != targetElo || this.eloOpenToday != targetElo;
+    this.eloScore = targetElo;
+    this.eloOpenToday = targetElo;
+    this.updatedAt = Instant.now();
+    return changed;
+  }
+
+  /**
    * Refreshes match-profile dependent derived metrics in a single write.
    *
    * <p>Both fields are maintained by periodic batch recomputation jobs instead of vote-path

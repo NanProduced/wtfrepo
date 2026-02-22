@@ -110,4 +110,22 @@ public class BetPoolJpaEntity {
     }
     return poolDown + houseDown;
   }
+
+  /**
+   * Marks this trading-day pool as CLOSED when cutoff fallback is executed.
+   *
+   * <p>Returns {@code true} only when status changes from {@code OPEN} to {@code CLOSED}.
+   */
+  public boolean markClosedIfOpen() {
+    if (this.status != BetPoolStatus.OPEN) {
+      return false;
+    }
+    this.status = BetPoolStatus.CLOSED;
+    return true;
+  }
+
+  /** Marks this trading-day pool as settled after settlement/force-settle completes. */
+  public void markSettled() {
+    this.status = BetPoolStatus.SETTLED;
+  }
 }

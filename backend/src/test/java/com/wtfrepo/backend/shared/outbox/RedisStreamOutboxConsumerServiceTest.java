@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -158,6 +159,37 @@ class RedisStreamOutboxConsumerServiceTest {
     verify(eventHandler, never()).handle(any(OutboxStreamMessage.class));
     verify(deduplicationStore, never())
         .markProcessed(any(), any(), any(), any(), any());
+    verify(streamOperations)
+        .acknowledge(
+            properties.getRedisStreamKey(), properties.getConsumerGroup(), record.getId().getValue());
+    assertThat(result.scannedCount()).isEqualTo(1);
+    assertThat(result.consumedCount()).isEqualTo(1);
+    assertThat(result.failedCount()).isEqualTo(0);
+    assertThat(result.unknownCount()).isEqualTo(0);
+    assertThat(result.ackedCount()).isEqualTo(1);
+  }
+
+  @Test
+  void shouldDispatchAllHandlersForSameEventType() {
+    OutboxStreamEventHandler secondaryHandler = mock(OutboxStreamEventHandler.class);
+    when(eventHandler.eventType()).thenReturn("SpecimenDeactivatedEvent");
+    when(secondaryHandler.eventType()).thenReturn("SpecimenDeactivatedEvent");
+    OutboxStreamEventHandlerRegistry registry =
+        new OutboxStreamEventHandlerRegistry(List.of(eventHandler, secondaryHandler));
+    MapRecord<String, Object, Object> record =
+        mockRecord("SpecimenDeactivatedEvent", "evt-5", "171004-0");
+    stubReadBatch(List.of(record));
+
+    when(deduplicationStore.isProcessed(properties.getConsumerGroup(), "evt-5")).thenReturn(false);
+
+    RedisStreamOutboxConsumerService service =
+        new RedisStreamOutboxConsumerService(
+            stringRedisTemplate, properties, registry, Optional.of(deduplicationStore));
+
+    RedisStreamOutboxConsumerService.ConsumerBatchResult result = service.pollAndDispatch();
+
+    verify(eventHandler, times(1)).handle(any(OutboxStreamMessage.class));
+    verify(secondaryHandler, times(1)).handle(any(OutboxStreamMessage.class));
     verify(streamOperations)
         .acknowledge(
             properties.getRedisStreamKey(), properties.getConsumerGroup(), record.getId().getValue());

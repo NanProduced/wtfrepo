@@ -1,6 +1,8 @@
 package com.wtfrepo.backend.shared.web;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
@@ -19,13 +21,29 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiErrorResponse> handleValidation(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<ApiErrorResponse> handleValidation(
+          MethodArgumentNotValidException ex, HttpServletRequest request) {
         List<ApiErrorResponse.FieldViolation> violations =
                 ex.getBindingResult().getFieldErrors().stream()
                         .map(this::toFieldViolation)
                         .toList();
+
+        ApiErrorResponse body =
+                createBody(
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.VALIDATION_ERROR,
+                        "Validation failed",
+                        request,
+                        violations);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex, HttpServletRequest request) {
+        List<ApiErrorResponse.FieldViolation> violations =
+                ex.getConstraintViolations().stream().map(this::toFieldViolation).toList();
 
         ApiErrorResponse body =
                 createBody(
@@ -110,5 +128,13 @@ public class GlobalExceptionHandler {
     private ApiErrorResponse.FieldViolation toFieldViolation(FieldError fieldError) {
         return new ApiErrorResponse.FieldViolation(
                 fieldError.getField(), fieldError.getDefaultMessage());
+    }
+
+    private ApiErrorResponse.FieldViolation toFieldViolation(ConstraintViolation<?> violation) {
+        String field =
+                violation.getPropertyPath() == null
+                        ? "request"
+                        : violation.getPropertyPath().toString();
+        return new ApiErrorResponse.FieldViolation(field, violation.getMessage());
     }
 }

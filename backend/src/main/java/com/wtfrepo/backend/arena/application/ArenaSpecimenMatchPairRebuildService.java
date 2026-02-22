@@ -1,5 +1,6 @@
 package com.wtfrepo.backend.arena.application;
 
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
 import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenMatchPairJpaEntity;
@@ -34,14 +35,17 @@ public class ArenaSpecimenMatchPairRebuildService {
   private final ArenaSpecimenMatchReadModel specimenMatchReadModel;
   private final SpecimenMatchPairJpaRepository specimenMatchPairJpaRepository;
   private final ArenaMatchProperties arenaMatchProperties;
+  private final ArenaMatchProfilePort arenaMatchProfilePort;
 
   public ArenaSpecimenMatchPairRebuildService(
       ArenaSpecimenMatchReadModel specimenMatchReadModel,
       SpecimenMatchPairJpaRepository specimenMatchPairJpaRepository,
-      ArenaMatchProperties arenaMatchProperties) {
+      ArenaMatchProperties arenaMatchProperties,
+      ArenaMatchProfilePort arenaMatchProfilePort) {
     this.specimenMatchReadModel = specimenMatchReadModel;
     this.specimenMatchPairJpaRepository = specimenMatchPairJpaRepository;
     this.arenaMatchProperties = arenaMatchProperties;
+    this.arenaMatchProfilePort = arenaMatchProfilePort;
   }
 
   /**
@@ -51,16 +55,28 @@ public class ArenaSpecimenMatchPairRebuildService {
    */
   @Transactional
   public PairRebuildResult rebuildAllPairs(String reason) {
+    return rebuildAllPairs(reason, null);
+  }
+
+  /**
+   * Full rebuild with optional profile-version override from config publish event payload.
+   *
+   * <p>The override is used when M04 publishes a new {@code MATCH_PROFILE} version while runtime
+   * properties have not been reloaded yet.
+   */
+  @Transactional
+  public PairRebuildResult rebuildAllPairs(String reason, String profileVersionOverride) {
     Map<String, ArenaSpecimenMatchReadModel.SpecimenMatchCandidate> candidatesById =
         loadActiveCandidatesBySpecimenId();
     List<ArenaSpecimenMatchReadModel.SpecimenMatchCandidate> activeCandidates =
         new ArrayList<>(candidatesById.values());
     Set<String> adjacentSpeciesPairs =
         normalizeAdjacentPairs(arenaMatchProperties.getAdjacentSpeciesPairs());
+    String profileVersion = resolveProfileVersion(profileVersionOverride);
     long existingPairs = specimenMatchPairJpaRepository.count();
 
     List<SpecimenMatchPairJpaEntity> recomputedPairs =
-        buildAllPairs(activeCandidates, adjacentSpeciesPairs, Instant.now());
+        buildAllPairs(activeCandidates, adjacentSpeciesPairs, profileVersion, Instant.now());
     specimenMatchPairJpaRepository.deleteAllInBatch();
     saveAll(recomputedPairs);
 
@@ -104,9 +120,14 @@ public class ArenaSpecimenMatchPairRebuildService {
 
     Set<String> adjacentSpeciesPairs =
         normalizeAdjacentPairs(arenaMatchProperties.getAdjacentSpeciesPairs());
+    String profileVersion = resolveProfileVersion(null);
     List<SpecimenMatchPairJpaEntity> recomputedPairs =
         buildPairsForSpecimen(
-            centerCandidate, candidatesById.values(), adjacentSpeciesPairs, Instant.now());
+            centerCandidate,
+            candidatesById.values(),
+            adjacentSpeciesPairs,
+            profileVersion,
+            Instant.now());
     saveAll(recomputedPairs);
 
     PairRebuildResult result =
@@ -151,6 +172,7 @@ public class ArenaSpecimenMatchPairRebuildService {
   private List<SpecimenMatchPairJpaEntity> buildAllPairs(
       List<ArenaSpecimenMatchReadModel.SpecimenMatchCandidate> candidates,
       Set<String> adjacentSpeciesPairs,
+      String profileVersion,
       Instant computedAt) {
     List<ArenaSpecimenMatchReadModel.SpecimenMatchCandidate> sortedCandidates =
         candidates.stream()
@@ -166,6 +188,7 @@ public class ArenaSpecimenMatchPairRebuildService {
                 sortedCandidates.get(leftIndex),
                 sortedCandidates.get(rightIndex),
                 adjacentSpeciesPairs,
+                profileVersion,
                 computedAt));
       }
     }
@@ -176,6 +199,7 @@ public class ArenaSpecimenMatchPairRebuildService {
       ArenaSpecimenMatchReadModel.SpecimenMatchCandidate centerCandidate,
       Collection<ArenaSpecimenMatchReadModel.SpecimenMatchCandidate> allCandidates,
       Set<String> adjacentSpeciesPairs,
+      String profileVersion,
       Instant computedAt) {
     List<SpecimenMatchPairJpaEntity> pairs = new ArrayList<>();
     for (ArenaSpecimenMatchReadModel.SpecimenMatchCandidate other : allCandidates) {
@@ -184,7 +208,7 @@ public class ArenaSpecimenMatchPairRebuildService {
           || centerCandidate.specimenId().equals(other.specimenId())) {
         continue;
       }
-      pairs.add(buildPair(centerCandidate, other, adjacentSpeciesPairs, computedAt));
+      pairs.add(buildPair(centerCandidate, other, adjacentSpeciesPairs, profileVersion, computedAt));
     }
     return pairs;
   }
@@ -193,6 +217,7 @@ public class ArenaSpecimenMatchPairRebuildService {
       ArenaSpecimenMatchReadModel.SpecimenMatchCandidate left,
       ArenaSpecimenMatchReadModel.SpecimenMatchCandidate right,
       Set<String> adjacentSpeciesPairs,
+      String profileVersion,
       Instant computedAt) {
     ArenaMatchType matchType = resolveMatchType(left.species(), right.species(), adjacentSpeciesPairs);
     int matchScore = speciesScore(matchType) + diagnosisBonus(left.diagnosisTags(), right.diagnosisTags());
@@ -201,7 +226,7 @@ public class ArenaSpecimenMatchPairRebuildService {
         right.specimenId(),
         matchType,
         matchScore,
-        resolveProfileVersion(),
+        profileVersion,
         computedAt);
   }
 
@@ -282,11 +307,15 @@ public class ArenaSpecimenMatchPairRebuildService {
     return left.compareTo(right) <= 0 ? left + separator + right : right + separator + left;
   }
 
-  private String resolveProfileVersion() {
-    if (!StringUtils.hasText(arenaMatchProperties.getProfileVersion())) {
+  private String resolveProfileVersion(String profileVersionOverride) {
+    if (StringUtils.hasText(profileVersionOverride)) {
+      return profileVersionOverride.trim();
+    }
+    String publishedProfileVersion = arenaMatchProfilePort.currentProfile().profileVersion();
+    if (!StringUtils.hasText(publishedProfileVersion)) {
       return "unknown";
     }
-    return arenaMatchProperties.getProfileVersion().trim();
+    return publishedProfileVersion.trim();
   }
 
   private void saveAll(List<SpecimenMatchPairJpaEntity> entities) {

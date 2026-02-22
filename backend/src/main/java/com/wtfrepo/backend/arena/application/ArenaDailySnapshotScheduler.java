@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Scheduler wrapper for phase A/B settlement job. */
+/** Scheduler wrapper for daily snapshot and correction settlement job. */
 @Component
 @ConditionalOnBean(ArenaDailySnapshotService.class)
 @ConditionalOnProperty(prefix = "app.arena.settlement", name = "enabled", havingValue = "true")

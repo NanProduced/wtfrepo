@@ -6,9 +6,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.stereotype.Component;
 
 /**
- * Temporary no-op economy adapter to keep arena call sites stable before M03 implementation.
+ * Compatibility no-op adapter used only when economy persistence beans are absent.
  *
- * <p>TODO(M03-economy): replace this adapter with a real M03-backed implementation.
+ * <p>In normal runtime, {@link M03BackedArenaEconomyPort} should be selected. This fallback keeps
+ * lightweight test/scaffold contexts bootable without pulling full economy infrastructure.
  */
 @Deprecated(forRemoval = true)
 @Component
@@ -23,13 +24,13 @@ public class NoOpArenaEconomyPort implements ArenaEconomyPort {
       String refId,
       String idempotencyKey,
       ArenaPolicySnapshot policySnapshot) {
-    // Intentionally empty in scaffold phase.
+    // Intentionally empty in scaffold stage.
     return 0L;
   }
 
   @Override
   public long currentBalance(String userId) {
-    // TODO(M03-economy): return balance from economy wallet source of truth.
+    // Fallback mode intentionally returns 0 and should never be used in production runtime.
     return 0L;
   }
 }

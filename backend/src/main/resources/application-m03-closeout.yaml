@@ -1,0 +1,16 @@
+app:
+  shared:
+    outbox:
+      # M03 close-out smoke profile:
+      # enable JPA outbox write + relay + stream consumer together.
+      jpa-enabled: true
+      relay-enabled: true
+      consumer-enabled: true
+      # Keep unknown event unacked to avoid silent data loss during integration checks.
+      consumer-ack-unknown-event-type: false
+
+  betting:
+    settlement:
+      # Enable settlement orchestration in smoke verification profile only.
+      enabled: true
+

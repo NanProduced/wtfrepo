@@ -7,10 +7,11 @@ import com.wtfrepo.backend.arena.application.economy.ArenaEconomyPort;
 import com.wtfrepo.backend.arena.application.economy.ArenaEconomyProperties;
 import com.wtfrepo.backend.arena.application.economy.PropertyBackedArenaPolicyPort;
 import com.wtfrepo.backend.arena.application.policy.ArenaPolicySnapshot;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfileSnapshot;
 import com.wtfrepo.backend.arena.application.support.ArenaBattleIdVerifier;
 import com.wtfrepo.backend.arena.application.support.ArenaConstants;
 import com.wtfrepo.backend.arena.application.support.ArenaContractProperties;
-import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
 import com.wtfrepo.backend.shared.outbox.OutboxEventStore;
@@ -59,8 +60,8 @@ class ArenaVoteServiceTest {
     ratingStore.seed("spm_right", 1500, 0);
     idempotencyStore = new CapturingVoteIdempotencyStore();
     outboxStore = new CapturingOutboxStore();
-    ArenaMatchProperties matchProperties = new ArenaMatchProperties();
-    matchProperties.setProfileVersion("test-match-profile-v1");
+    ArenaMatchProfilePort matchProfilePort =
+        () -> new ArenaMatchProfileSnapshot("test-match-profile-v1", "species", "diagnosis");
     arenaVoteService =
         new ArenaVoteService(
             idempotencyStore,
@@ -70,7 +71,7 @@ class ArenaVoteServiceTest {
             recordingEconomyPort,
             policyPort,
             outboxStore,
-            matchProperties);
+            matchProfilePort);
   }
 
   @Test

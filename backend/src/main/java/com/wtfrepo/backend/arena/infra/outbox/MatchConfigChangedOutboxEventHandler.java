@@ -54,6 +54,8 @@ public class MatchConfigChangedOutboxEventHandler implements OutboxStreamEventHa
     }
 
     String version = payloadReader.readTextField(message.payload(), "version").orElse("unknown");
-    rebuildService.rebuildAllPairs(EVENT_TYPE + ":" + configType + ":" + version);
+    String profileVersionOverride = "MATCH_PROFILE".equals(configType) ? version : null;
+    rebuildService.rebuildAllPairs(
+        EVENT_TYPE + ":" + configType + ":" + version, profileVersionOverride);
   }
 }

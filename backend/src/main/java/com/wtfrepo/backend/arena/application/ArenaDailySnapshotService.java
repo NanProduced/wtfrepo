@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Phase A/B settlement service for daily Elo snapshots and global mean-reversion correction.
+ * Daily snapshot settlement service for Elo snapshots and global mean-reversion correction.
  *
  * <p>Execution window temporarily toggles {@code settlementInProgress} so vote API can fail fast
  * with contract-defined 503 error while settlement jobs are running.

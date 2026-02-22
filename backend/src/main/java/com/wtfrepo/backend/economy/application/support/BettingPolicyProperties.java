@@ -7,7 +7,7 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-/** Property-backed betting policy used in Phase-B MVP. */
+/** Property-backed betting policy used in economy MVP. */
 @Getter
 @Setter
 @Component

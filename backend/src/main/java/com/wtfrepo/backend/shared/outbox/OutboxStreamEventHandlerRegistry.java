@@ -1,5 +1,6 @@
 package com.wtfrepo.backend.shared.outbox;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,35 +8,45 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * Registry for mapping outbox event type to its domain handler.
+ * Registry for mapping outbox event type to its domain handlers.
  *
- * <p>Duplicate event type bindings are rejected at startup to avoid nondeterministic consumption.
+ * <p>One event type can fan out to multiple handlers (for example Arena and Economy both consume
+ * {@code SpecimenDeactivatedEvent}). Handler execution order follows bean discovery order.
  */
 @Component
 public class OutboxStreamEventHandlerRegistry {
 
-  private final Map<String, OutboxStreamEventHandler> handlersByEventType;
+  private final Map<String, List<OutboxStreamEventHandler>> handlersByEventType;
+  private final int handlerCount;
 
   public OutboxStreamEventHandlerRegistry(List<OutboxStreamEventHandler> handlers) {
-    Map<String, OutboxStreamEventHandler> mapping = new LinkedHashMap<>();
+    Map<String, List<OutboxStreamEventHandler>> mapping = new LinkedHashMap<>();
     for (OutboxStreamEventHandler handler : handlers) {
       String eventType = normalizeEventType(handler.eventType());
-      OutboxStreamEventHandler existing = mapping.putIfAbsent(eventType, handler);
-      if (existing != null) {
-        throw new IllegalStateException("Duplicate outbox stream handler for eventType=" + eventType);
-      }
+      mapping.computeIfAbsent(eventType, ignored -> new ArrayList<>()).add(handler);
     }
-    this.handlersByEventType = Map.copyOf(mapping);
+    Map<String, List<OutboxStreamEventHandler>> immutableMapping = new LinkedHashMap<>();
+    mapping.forEach((eventType, eventHandlers) -> immutableMapping.put(eventType, List.copyOf(eventHandlers)));
+    this.handlersByEventType = Map.copyOf(immutableMapping);
+    this.handlerCount = handlers.size();
+  }
+
+  public List<OutboxStreamEventHandler> findAll(String eventType) {
+    if (eventType == null || eventType.isBlank()) {
+      return List.of();
+    }
+    return handlersByEventType.getOrDefault(eventType.trim(), List.of());
   }
 
   public Optional<OutboxStreamEventHandler> find(String eventType) {
-    if (eventType == null || eventType.isBlank()) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(handlersByEventType.get(eventType.trim()));
+    return findAll(eventType).stream().findFirst();
   }
 
   public int handlerCount() {
+    return handlerCount;
+  }
+
+  public int eventTypeCount() {
     return handlersByEventType.size();
   }
 

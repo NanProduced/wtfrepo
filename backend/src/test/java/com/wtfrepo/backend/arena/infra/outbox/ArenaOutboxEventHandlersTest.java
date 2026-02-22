@@ -2,6 +2,7 @@ package com.wtfrepo.backend.arena.infra.outbox;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -41,8 +42,8 @@ class ArenaOutboxEventHandlersTest {
 
   @Test
   void specimenDeactivatedShouldTriggerPairRemoval() {
-    SpecimenDeactivatedOutboxEventHandler handler =
-        new SpecimenDeactivatedOutboxEventHandler(payloadReader, rebuildService);
+    ArenaSpecimenDeactivatedOutboxEventHandler handler =
+        new ArenaSpecimenDeactivatedOutboxEventHandler(payloadReader, rebuildService);
 
     handler.handle(message("evt-2", "{\"specimenId\":\"spm_2\"}"));
 
@@ -71,7 +72,8 @@ class ArenaOutboxEventHandlersTest {
             "{\"configType\":\"MATCH_PROFILE\",\"version\":\"profile_v2026_02_16\"}"));
 
     verify(rebuildService)
-        .rebuildAllPairs("MatchConfigChangedEvent:MATCH_PROFILE:profile_v2026_02_16");
+        .rebuildAllPairs(
+            "MatchConfigChangedEvent:MATCH_PROFILE:profile_v2026_02_16", "profile_v2026_02_16");
   }
 
   @Test
@@ -81,7 +83,7 @@ class ArenaOutboxEventHandlersTest {
 
     handler.handle(message("evt-5", "{\"configType\":\"UNRELATED\"}"));
 
-    verify(rebuildService, never()).rebuildAllPairs(anyString());
+    verify(rebuildService, never()).rebuildAllPairs(anyString(), isNull());
   }
 
   private OutboxStreamMessage message(String eventId, String payload) {

@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfilePort;
+import com.wtfrepo.backend.arena.application.profile.ArenaMatchProfileSnapshot;
 import com.wtfrepo.backend.arena.application.support.ArenaMatchProperties;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenMatchPairJpaEntity;
@@ -36,9 +38,14 @@ class ArenaSpecimenMatchPairRebuildServiceTest {
   void setUp() {
     ArenaMatchProperties arenaMatchProperties = new ArenaMatchProperties();
     arenaMatchProperties.setAdjacentSpeciesPairs(List.of("cat:dog"));
+    ArenaMatchProfilePort matchProfilePort =
+        () -> new ArenaMatchProfileSnapshot("v1.0.0", "species", "diagnosis");
     service =
         new ArenaSpecimenMatchPairRebuildService(
-            specimenMatchReadModel, specimenMatchPairJpaRepository, arenaMatchProperties);
+            specimenMatchReadModel,
+            specimenMatchPairJpaRepository,
+            arenaMatchProperties,
+            matchProfilePort);
   }
 
   @Test
@@ -71,6 +78,22 @@ class ArenaSpecimenMatchPairRebuildServiceTest {
     assertThat(result.activeSpecimens()).isEqualTo(3);
     assertThat(result.deletedPairs()).isEqualTo(2);
     assertThat(result.upsertedPairs()).isEqualTo(3);
+  }
+
+  @Test
+  void shouldApplyProfileVersionOverrideWhenProvided() {
+    when(specimenMatchReadModel.listActiveCandidates())
+        .thenReturn(List.of(candidate("spm_a", "dog", List.of("d1")), candidate("spm_b", "dog", List.of("d1"))));
+    when(specimenMatchPairJpaRepository.count()).thenReturn(0L);
+
+    service.rebuildAllPairs("unit-test", "profile_v2026_02_18");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<SpecimenMatchPairJpaEntity>> pairsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(specimenMatchPairJpaRepository).saveAll(pairsCaptor.capture());
+    assertThat(pairsCaptor.getValue()).hasSize(1);
+    assertThat(pairsCaptor.getValue().get(0).getMatchProfileVersion())
+        .isEqualTo("profile_v2026_02_18");
   }
 
   @Test
