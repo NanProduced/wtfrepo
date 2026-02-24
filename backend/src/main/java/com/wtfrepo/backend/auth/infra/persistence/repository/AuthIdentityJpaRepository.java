@@ -11,5 +11,8 @@ public interface AuthIdentityJpaRepository extends JpaRepository<AuthIdentityJpa
   Optional<AuthIdentityJpaEntity> findByProviderAndProviderSubject(
       OAuthProvider provider, String providerSubject);
 
+  Optional<AuthIdentityJpaEntity> findFirstByUserIdAndProvider(
+      String userId, OAuthProvider provider);
+
   List<AuthIdentityJpaEntity> findByUserId(String userId);
 }

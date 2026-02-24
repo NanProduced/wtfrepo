@@ -14,7 +14,21 @@ spring:
       ddl-auto: none
     open-in-view: false
 
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+    path: /swagger-ui.html
+    display-request-duration: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+
 app:
+  admin:
+    bootstrap:
+      email: ${ADMIN_BOOTSTRAP_EMAIL:}
   shared:
     outbox:
       # Keep JPA outbox write path disabled until entity/schema review is completed.
@@ -44,6 +58,23 @@ app:
       daily-game-bug-cap: ${ECONOMY_DAILY_GAME_BUG_CAP:2000}
       policy-version: ${ECONOMY_POLICY_VERSION:economy-policy-property-v1}
       policy-source: ${ECONOMY_POLICY_SOURCE:property}
+  comments:
+    policy:
+      # TODO(M03-economy): move comment cost to unified policy center after contract freeze.
+      comment-cost-bug: ${COMMENTS_COMMENT_COST_BUG:200}
+      # Contract default limit for M05 publish endpoint.
+      content-max-length: ${COMMENTS_CONTENT_MAX_LENGTH:4000}
+      # Max unique @mentions parsed from contentMd for one comment.
+      mention-max-count: ${COMMENTS_MENTION_MAX_COUNT:5}
+      # Optional report message cap to keep moderation payload bounded.
+      report-message-max-length: ${COMMENTS_REPORT_MESSAGE_MAX_LENGTH:500}
+      # Contract default list window.
+      list-default-limit: ${COMMENTS_LIST_DEFAULT_LIMIT:20}
+      list-max-limit: ${COMMENTS_LIST_MAX_LIMIT:50}
+      # Top Roast requires at least this many resonance votes.
+      chief-conclusion-threshold: ${COMMENTS_CHIEF_CONCLUSION_THRESHOLD:10}
+      # Placeholder shown for soft-deleted comments in list responses.
+      deleted-placeholder: ${COMMENTS_DELETED_PLACEHOLDER:此病历已封存}
   auth:
     identity-proof:
       issuer: ${AUTH_IDENTITY_PROOF_ISSUER:wtf-repo-bff}
@@ -156,3 +187,5 @@ app:
       secret: change-this-in-prod-change-this-in-prod
       issuer: wtf-repo-backend
       ttl: 1h
+      admin-ttl: ${ADMIN_TOKEN_TTL:8h}
+      blacklist-key-prefix: ${ADMIN_TOKEN_BLACKLIST_PREFIX:security:token:blacklist}

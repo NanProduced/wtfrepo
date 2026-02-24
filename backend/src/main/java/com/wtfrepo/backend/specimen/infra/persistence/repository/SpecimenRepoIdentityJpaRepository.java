@@ -12,4 +12,7 @@ public interface SpecimenRepoIdentityJpaRepository
   List<SpecimenRepoIdentityJpaEntity> findBySpecimenId(String specimenId);
 
   List<SpecimenRepoIdentityJpaEntity> findBySpecimenIdAndActiveTrue(String specimenId);
+
+  java.util.Optional<SpecimenRepoIdentityJpaEntity>
+      findBySpecimenIdAndGithubUserIdAndActiveTrue(String specimenId, String githubUserId);
 }

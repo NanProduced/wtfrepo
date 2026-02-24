@@ -2,6 +2,8 @@ package com.wtfrepo.backend.shared.security;
 
 import com.wtfrepo.backend.auth.domain.AuthUser;
 import java.time.Instant;
+import java.time.Duration;
+import java.util.UUID;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -23,7 +25,9 @@ public class JwtTokenService implements TokenService {
   @Override
   public IssuedToken issueToken(AuthUser user) {
     Instant issuedAt = Instant.now();
-    Instant expiresAt = issuedAt.plus(tokenProperties.getTtl());
+    Duration ttl = tokenProperties.resolveTtl(user.roles());
+    Instant expiresAt = issuedAt.plus(ttl);
+    String tokenId = "tkn_" + UUID.randomUUID();
 
     JwtClaimsSet claims =
         JwtClaimsSet.builder()
@@ -31,6 +35,7 @@ public class JwtTokenService implements TokenService {
             .issuedAt(issuedAt)
             .expiresAt(expiresAt)
             .subject(user.userId())
+            .id(tokenId)
             .claim("username", user.username())
             .claim("roles", user.roles().stream().map(Enum::name).toList())
             .build();
@@ -43,7 +48,7 @@ public class JwtTokenService implements TokenService {
                     claims))
             .getTokenValue();
 
-    long expiresIn = tokenProperties.getTtl().toSeconds();
+    long expiresIn = ttl.toSeconds();
     return new IssuedToken(tokenValue, expiresIn, expiresAt);
   }
 }

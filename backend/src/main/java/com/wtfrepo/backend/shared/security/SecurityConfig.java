@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -58,7 +59,13 @@ public class SecurityConfig {
                     .authenticated()
                     .requestMatchers("/api/v1/watchlist/**")
                     .authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/comments/**")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.DELETE, "/api/v1/comments/**")
+                    .authenticated()
                     .requestMatchers("/api/v1/admin/**")
+                    .authenticated()
+                    .requestMatchers("/api/v1/internal/**")
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/specimens/*/hype")
                     .authenticated()
@@ -97,8 +104,15 @@ public class SecurityConfig {
   }
 
   @Bean
-  JwtDecoder jwtDecoder(SecurityTokenProperties tokenProperties) {
-    return NimbusJwtDecoder.withSecretKey(tokenProperties.secretKey()).build();
+  JwtDecoder jwtDecoder(
+      SecurityTokenProperties tokenProperties,
+      ObjectProvider<TokenBlacklistStore> blacklistStoreProvider) {
+    JwtDecoder decoder = NimbusJwtDecoder.withSecretKey(tokenProperties.secretKey()).build();
+    TokenBlacklistStore blacklistStore = blacklistStoreProvider.getIfAvailable();
+    if (blacklistStore == null) {
+      return decoder;
+    }
+    return new BlacklistAwareJwtDecoder(decoder, blacklistStore);
   }
 
   private void writeError(

@@ -11,6 +11,7 @@ import com.wtfrepo.backend.economy.application.policy.EconomyPolicyPort;
 import com.wtfrepo.backend.economy.application.policy.EconomyPolicySnapshot;
 import com.wtfrepo.backend.economy.domain.EconomyLedgerType;
 import com.wtfrepo.backend.economy.infra.persistence.entity.EconomyDailyClaimJpaEntity;
+import com.wtfrepo.backend.economy.infra.persistence.entity.EconomyLedgerJpaEntity;
 import com.wtfrepo.backend.economy.infra.persistence.entity.EconomyWalletJpaEntity;
 import com.wtfrepo.backend.economy.infra.persistence.repository.EconomyDailyClaimJpaRepository;
 import com.wtfrepo.backend.economy.infra.persistence.repository.EconomyLedgerJpaRepository;
@@ -87,6 +88,66 @@ class EconomyWalletServiceTest {
                       && ((Number) payload.get("delta")).longValue() == 200L
                       && ((Number) payload.get("balanceAfter")).longValue() == 1200L;
                 }));
+  }
+
+  @Test
+  void deductBug_shouldUseCommentLedgerTypeForCommentsContractFlow() {
+    EconomyWalletJpaEntity wallet = EconomyWalletJpaEntity.create("usr_1", 1000L);
+    when(economyPolicyPort.currentPolicySnapshot())
+        .thenReturn(new EconomyPolicySnapshot(500, 100, 2000, "policy-v1", "property"));
+    when(ledgerRepository.findByIdempotencyKey("idem-comment-1"))
+        .thenReturn(Optional.empty(), Optional.empty());
+    when(walletRepository.findByUserIdForUpdate("usr_1")).thenReturn(Optional.of(wallet));
+    when(walletRepository.save(any(EconomyWalletJpaEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(ledgerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    EconomyWalletService.LedgerWriteResult result =
+        walletService.deductBug("usr_1", 200, "COMMENT", "cmt_1", "COMMENT", "idem-comment-1");
+
+    assertThat(result.balanceAfter()).isEqualTo(800L);
+    assertThat(result.ledgerId()).isNotBlank();
+    verify(ledgerRepository)
+        .save(
+            argThat(
+                (EconomyLedgerJpaEntity ledger) ->
+                    ledger.getEntryType() == EconomyLedgerType.COMMENT
+                        && ledger.getDelta() == -200L
+                        && ledger.getRefType().equals("COMMENT")
+                        && ledger.getRefId().equals("cmt_1")));
+  }
+
+  @Test
+  void creditBug_shouldUseCommentReviewRefundLedgerType() {
+    EconomyWalletJpaEntity wallet = EconomyWalletJpaEntity.create("usr_1", 1000L);
+    when(economyPolicyPort.currentPolicySnapshot())
+        .thenReturn(new EconomyPolicySnapshot(500, 100, 2000, "policy-v1", "property"));
+    when(ledgerRepository.findByIdempotencyKey("idem-comment-refund-1"))
+        .thenReturn(Optional.empty(), Optional.empty());
+    when(walletRepository.findByUserIdForUpdate("usr_1")).thenReturn(Optional.of(wallet));
+    when(walletRepository.save(any(EconomyWalletJpaEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(ledgerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    EconomyWalletService.LedgerWriteResult result =
+        walletService.creditBug(
+            "usr_1",
+            200,
+            "COMMENT_REVIEW_REFUND",
+            "cmt_1",
+            "COMMENT",
+            "idem-comment-refund-1");
+
+    assertThat(result.balanceAfter()).isEqualTo(1200L);
+    assertThat(result.ledgerId()).isNotBlank();
+    verify(ledgerRepository)
+        .save(
+            argThat(
+                (EconomyLedgerJpaEntity ledger) ->
+                    ledger.getEntryType() == EconomyLedgerType.COMMENT_REVIEW_REFUND
+                        && ledger.getDelta() == 200L
+                        && ledger.getRefType().equals("COMMENT")
+                        && ledger.getRefId().equals("cmt_1")));
   }
 
   @Test

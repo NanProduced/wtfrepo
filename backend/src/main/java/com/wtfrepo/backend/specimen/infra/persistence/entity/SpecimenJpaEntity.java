@@ -95,7 +95,7 @@ public class SpecimenJpaEntity {
 
   public void deactivate(String reviewer, String reason) {
     Instant now = Instant.now();
-    this.status = SpecimenStatus.DEACTIVATED;
+    this.status = SpecimenStatus.OFFLINED;
     this.reviewedBy = reviewer;
     this.reviewedAt = now;
     this.note = reason;

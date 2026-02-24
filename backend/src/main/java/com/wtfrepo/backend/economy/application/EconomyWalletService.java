@@ -86,24 +86,90 @@ public class EconomyWalletService {
         .orElseGet(() -> walletBootstrapPort.initialBalanceFor(userId));
   }
 
+  /**
+   * Contract-aligned wallet deduction API for cross-module internal calls.
+   *
+   * <p>Callers pass semantic {@code reason} values (for example {@code VOTE}, {@code BET},
+   * {@code COMMENT}) instead of internal enum names. This keeps module boundaries stable while still
+   * writing strongly typed ledger records in M03.
+   */
+  @Transactional
+  public LedgerWriteResult deductBug(
+      String userId,
+      int amount,
+      String reason,
+      String refId,
+      String refType,
+      String idempotencyKey) {
+    EconomyLedgerType ledgerType = resolveDeductLedgerType(reason);
+    EconomyPolicySnapshot policySnapshot = economyPolicyPort.currentPolicySnapshot();
+    return deductMutation(
+        new DeductCommand(
+            userId,
+            amount,
+            refType,
+            refId,
+            idempotencyKey,
+            new DeductPolicySnapshot(
+                null,
+                null,
+                null,
+                policySnapshot.policyVersion(),
+                policySnapshot.policySource())),
+        ledgerType);
+  }
+
+  /**
+   * Contract-aligned wallet credit API for cross-module internal calls.
+   *
+   * <p>Used by modules such as M05 Comments for refund flows without exposing internal economy
+   * command models.
+   */
+  @Transactional
+  public LedgerWriteResult creditBug(
+      String userId,
+      int amount,
+      String reason,
+      String refId,
+      String refType,
+      String idempotencyKey) {
+    EconomyLedgerType ledgerType = resolveCreditLedgerType(reason);
+    EconomyPolicySnapshot policySnapshot = economyPolicyPort.currentPolicySnapshot();
+    return creditMutation(
+        new CreditCommand(
+            userId,
+            amount,
+            refType,
+            refId,
+            idempotencyKey,
+            policySnapshot.policyVersion(),
+            policySnapshot.policySource()),
+        ledgerType);
+  }
+
   @Transactional
   public long deduct(DeductCommand command) {
-    return deductInternal(command, EconomyLedgerType.ARENA_VOTE_COST);
+    return deductMutation(command, EconomyLedgerType.ARENA_VOTE_COST).balanceAfter();
   }
 
   @Transactional
   public long deductBet(DeductCommand command) {
-    return deductInternal(command, EconomyLedgerType.BET);
+    return deductMutation(command, EconomyLedgerType.BET).balanceAfter();
   }
 
   @Transactional
   public long credit(CreditCommand command, EconomyLedgerType ledgerType) {
+    return creditMutation(command, ledgerType).balanceAfter();
+  }
+
+  private LedgerWriteResult creditMutation(CreditCommand command, EconomyLedgerType ledgerType) {
     validateCreditAmount(command.amount());
 
     Optional<EconomyLedgerJpaEntity> existingByIdempotency =
         ledgerRepository.findByIdempotencyKey(command.idempotencyKey());
     if (existingByIdempotency.isPresent()) {
-      return existingByIdempotency.get().getBalanceAfter();
+      EconomyLedgerJpaEntity existing = existingByIdempotency.get();
+      return new LedgerWriteResult(existing.getLedgerId(), existing.getBalanceAfter());
     }
 
     EconomyWalletJpaEntity wallet = loadWalletForUpdateOrCreate(command.userId());
@@ -111,25 +177,27 @@ public class EconomyWalletService {
     // Re-check idempotency key under wallet lock to avoid duplicate ledger write under concurrency.
     existingByIdempotency = ledgerRepository.findByIdempotencyKey(command.idempotencyKey());
     if (existingByIdempotency.isPresent()) {
-      return existingByIdempotency.get().getBalanceAfter();
+      EconomyLedgerJpaEntity existing = existingByIdempotency.get();
+      return new LedgerWriteResult(existing.getLedgerId(), existing.getBalanceAfter());
     }
 
     long balanceAfter = wallet.credit(command.amount());
     walletRepository.save(wallet);
-    ledgerRepository.save(
-        EconomyLedgerJpaEntity.create(
-            command.userId(),
-            ledgerType,
-            command.amount(),
-            balanceAfter,
-            command.refType(),
-            command.refId(),
-            command.idempotencyKey(),
-            null,
-            null,
-            null,
-            command.policyVersion(),
-            command.policySource()));
+    EconomyLedgerJpaEntity ledger =
+        ledgerRepository.save(
+            EconomyLedgerJpaEntity.create(
+                command.userId(),
+                ledgerType,
+                command.amount(),
+                balanceAfter,
+                command.refType(),
+                command.refId(),
+                command.idempotencyKey(),
+                null,
+                null,
+                null,
+                command.policyVersion(),
+                command.policySource()));
     appendBugBalanceChangedEvent(
         command.userId(),
         command.amount(),
@@ -137,7 +205,7 @@ public class EconomyWalletService {
         ledgerType.name(),
         command.refId(),
         command.idempotencyKey());
-    return balanceAfter;
+    return new LedgerWriteResult(ledger.getLedgerId(), balanceAfter);
   }
 
   @Transactional(readOnly = true)
@@ -177,13 +245,14 @@ public class EconomyWalletService {
     return new LedgerPageView(items, nextCursor, hasMore);
   }
 
-  private long deductInternal(DeductCommand command, EconomyLedgerType ledgerType) {
+  private LedgerWriteResult deductMutation(DeductCommand command, EconomyLedgerType ledgerType) {
     validateDeductAmount(command.amount());
 
     Optional<EconomyLedgerJpaEntity> existingByIdempotency =
         ledgerRepository.findByIdempotencyKey(command.idempotencyKey());
     if (existingByIdempotency.isPresent()) {
-      return existingByIdempotency.get().getBalanceAfter();
+      EconomyLedgerJpaEntity existing = existingByIdempotency.get();
+      return new LedgerWriteResult(existing.getLedgerId(), existing.getBalanceAfter());
     }
 
     EconomyWalletJpaEntity wallet = loadWalletForUpdateOrCreate(command.userId());
@@ -191,7 +260,8 @@ public class EconomyWalletService {
     // Re-check idempotency key under wallet lock to avoid duplicate ledger write under concurrency.
     existingByIdempotency = ledgerRepository.findByIdempotencyKey(command.idempotencyKey());
     if (existingByIdempotency.isPresent()) {
-      return existingByIdempotency.get().getBalanceAfter();
+      EconomyLedgerJpaEntity existing = existingByIdempotency.get();
+      return new LedgerWriteResult(existing.getLedgerId(), existing.getBalanceAfter());
     }
 
     if (wallet.getBalance() < command.amount()) {
@@ -200,20 +270,21 @@ public class EconomyWalletService {
 
     long balanceAfter = wallet.debit(command.amount());
     walletRepository.save(wallet);
-    ledgerRepository.save(
-        EconomyLedgerJpaEntity.create(
-            command.userId(),
-            ledgerType,
-            -command.amount(),
-            balanceAfter,
-            command.refType(),
-            command.refId(),
-            command.idempotencyKey(),
-            command.policySnapshot().bugCost(),
-            command.policySnapshot().minBet(),
-            command.policySnapshot().rakeRate(),
-            command.policySnapshot().policyVersion(),
-            command.policySnapshot().policySource()));
+    EconomyLedgerJpaEntity ledger =
+        ledgerRepository.save(
+            EconomyLedgerJpaEntity.create(
+                command.userId(),
+                ledgerType,
+                -command.amount(),
+                balanceAfter,
+                command.refType(),
+                command.refId(),
+                command.idempotencyKey(),
+                command.policySnapshot().bugCost(),
+                command.policySnapshot().minBet(),
+                command.policySnapshot().rakeRate(),
+                command.policySnapshot().policyVersion(),
+                command.policySnapshot().policySource()));
     appendBugBalanceChangedEvent(
         command.userId(),
         -command.amount(),
@@ -221,7 +292,7 @@ public class EconomyWalletService {
         ledgerType.name(),
         command.refId(),
         command.idempotencyKey());
-    return balanceAfter;
+    return new LedgerWriteResult(ledger.getLedgerId(), balanceAfter);
   }
 
   @Transactional
@@ -391,6 +462,7 @@ public class EconomyWalletService {
 
     return switch (reason.trim().toUpperCase(Locale.ROOT)) {
       case "VOTE" -> EconomyLedgerType.ARENA_VOTE_COST;
+      case "COMMENT" -> EconomyLedgerType.COMMENT;
       case "DAILY" -> EconomyLedgerType.DAILY_CLAIM;
       case "GAME" -> EconomyLedgerType.GAME_REWARD;
       case "BET" -> EconomyLedgerType.BET;
@@ -399,9 +471,41 @@ public class EconomyWalletService {
       case "HOUSE_WIN" -> EconomyLedgerType.HOUSE_WIN;
       case "MOON_DOOM_BONUS" -> EconomyLedgerType.MOON_DOOM_BONUS;
       case "FORCE_SETTLE_REFUND" -> EconomyLedgerType.FORCE_SETTLE_REFUND;
+      case "COMMENT_REVIEW_REFUND" -> EconomyLedgerType.COMMENT_REVIEW_REFUND;
       case "RAKE" -> EconomyLedgerType.RAKE;
       default -> throw EconomyExceptions.invalidReason(EconomyConstants.Message.INVALID_REASON);
     };
+  }
+
+  private EconomyLedgerType resolveDeductLedgerType(String reason) {
+    return switch (normalizeReason(reason)) {
+      case "VOTE" -> EconomyLedgerType.ARENA_VOTE_COST;
+      case "BET" -> EconomyLedgerType.BET;
+      case "COMMENT" -> EconomyLedgerType.COMMENT;
+      default -> throw EconomyExceptions.invalidReason(EconomyConstants.Message.INVALID_REASON);
+    };
+  }
+
+  private EconomyLedgerType resolveCreditLedgerType(String reason) {
+    return switch (normalizeReason(reason)) {
+      case "DAILY" -> EconomyLedgerType.DAILY_CLAIM;
+      case "GAME" -> EconomyLedgerType.GAME_REWARD;
+      case "BET_WIN" -> EconomyLedgerType.BET_WIN;
+      case "HOUSE_STAKE" -> EconomyLedgerType.HOUSE_STAKE;
+      case "HOUSE_WIN" -> EconomyLedgerType.HOUSE_WIN;
+      case "MOON_DOOM_BONUS" -> EconomyLedgerType.MOON_DOOM_BONUS;
+      case "FORCE_SETTLE_REFUND" -> EconomyLedgerType.FORCE_SETTLE_REFUND;
+      case "COMMENT_REVIEW_REFUND" -> EconomyLedgerType.COMMENT_REVIEW_REFUND;
+      case "RAKE" -> EconomyLedgerType.RAKE;
+      default -> throw EconomyExceptions.invalidReason(EconomyConstants.Message.INVALID_REASON);
+    };
+  }
+
+  private String normalizeReason(String reason) {
+    if (!StringUtils.hasText(reason)) {
+      throw EconomyExceptions.invalidReason(EconomyConstants.Message.INVALID_REASON);
+    }
+    return reason.trim().toUpperCase(Locale.ROOT);
   }
 
   private LedgerItemView toLedgerItemView(EconomyLedgerJpaEntity ledger) {
@@ -454,6 +558,8 @@ public class EconomyWalletService {
       String refId,
       String refType,
       Instant createdAt) {}
+
+  public record LedgerWriteResult(String ledgerId, long balanceAfter) {}
 
   public record DailyClaimResult(
       boolean claimed, int amount, long balanceAfter, boolean alreadyClaimed) {

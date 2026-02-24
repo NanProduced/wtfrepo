@@ -9,6 +9,12 @@ import com.wtfrepo.backend.specimen.application.model.SpecimenModels.SubmitComma
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.SubmitResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.TagUpdateResult;
 import com.wtfrepo.backend.specimen.application.support.SpecimenConstants;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -36,6 +42,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Validated
 @RequestMapping("/api/v1/admin/specimens")
+@Tag(
+    name = "Admin: Specimen",
+    description = "Admin endpoints for specimen ingestion, review, and lifecycle management.")
 public class SpecimenAdminController {
 
   private final SpecimenAdminService specimenAdminService;
@@ -45,9 +54,19 @@ public class SpecimenAdminController {
   }
 
   @PostMapping("/import")
+  @Operation(
+      summary = "Import specimen",
+      description = "Admin import via GitHub URL. Placeholder flow until M07 ingestion pipeline.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Specimen imported")})
   public ResponseEntity<AdminImportResponse> importSpecimen(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @AuthenticationPrincipal Jwt jwt,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody AdminImportRequest request) {
     SpecimenApiSupport.requireAdminUserId(jwt);
     ImportResult result = specimenAdminService.importSpecimen(request.githubUrl());
@@ -55,11 +74,25 @@ public class SpecimenAdminController {
   }
 
   @PostMapping("/{specimenId}/submit")
+  @Operation(summary = "Submit specimen", description = "Submit specimen for review.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Submission accepted")})
   public ResponseEntity<AdminSubmitResponse> submitSpecimen(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY) String idempotencyKey,
-      @AuthenticationPrincipal Jwt jwt,
-      @PathVariable String specimenId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = SpecimenConstants.Header.IDEMPOTENCY_KEY,
+              description = "Idempotency key for admin write operations.",
+              required = true)
+          @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY)
+          String idempotencyKey,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+      @Parameter(description = "Specimen id.", required = true) @PathVariable String specimenId,
       @Valid @RequestBody AdminSubmitRequest request) {
     String adminUserId = SpecimenApiSupport.requireAdminUserId(jwt);
     SubmitResult result =
@@ -68,11 +101,27 @@ public class SpecimenAdminController {
   }
 
   @PostMapping("/{specimenId}/review")
+  @Operation(
+      summary = "Review specimen",
+      description = "Approve or reject a specimen submission.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Review processed")})
   public ResponseEntity<AdminReviewResponse> reviewSpecimen(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY) String idempotencyKey,
-      @AuthenticationPrincipal Jwt jwt,
-      @PathVariable String specimenId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = SpecimenConstants.Header.IDEMPOTENCY_KEY,
+              description = "Idempotency key for admin write operations.",
+              required = true)
+          @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY)
+          String idempotencyKey,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+      @Parameter(description = "Specimen id.", required = true) @PathVariable String specimenId,
       @Valid @RequestBody AdminReviewRequest request) {
     String adminUserId = SpecimenApiSupport.requireAdminUserId(jwt);
     ReviewResult result =
@@ -86,11 +135,25 @@ public class SpecimenAdminController {
   }
 
   @PostMapping("/{specimenId}/deactivate")
+  @Operation(summary = "Deactivate specimen", description = "Admin offlines an active specimen.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Specimen deactivated")})
   public ResponseEntity<AdminReviewResponse> deactivateSpecimen(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY) String idempotencyKey,
-      @AuthenticationPrincipal Jwt jwt,
-      @PathVariable String specimenId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = SpecimenConstants.Header.IDEMPOTENCY_KEY,
+              description = "Idempotency key for admin write operations.",
+              required = true)
+          @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY)
+          String idempotencyKey,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+      @Parameter(description = "Specimen id.", required = true) @PathVariable String specimenId,
       @Valid @RequestBody AdminDeactivateRequest request) {
     String adminUserId = SpecimenApiSupport.requireAdminUserId(jwt);
     ReviewResult result =
@@ -99,11 +162,27 @@ public class SpecimenAdminController {
   }
 
   @PostMapping("/{specimenId}/tags")
+  @Operation(
+      summary = "Update specimen tags",
+      description = "Replace specimen tags; update returns current status.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Tags updated")})
   public ResponseEntity<AdminTagUpdateResponse> updateSpecimenTags(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY) String idempotencyKey,
-      @AuthenticationPrincipal Jwt jwt,
-      @PathVariable String specimenId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = SpecimenConstants.Header.IDEMPOTENCY_KEY,
+              description = "Idempotency key for admin write operations.",
+              required = true)
+          @RequestHeader(SpecimenConstants.Header.IDEMPOTENCY_KEY)
+          String idempotencyKey,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+      @Parameter(description = "Specimen id.", required = true) @PathVariable String specimenId,
       @Valid @RequestBody AdminTagUpdateRequest request) {
     String adminUserId = SpecimenApiSupport.requireAdminUserId(jwt);
     TagUpdateResult result =

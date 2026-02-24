@@ -3,6 +3,12 @@ package com.wtfrepo.backend.arena.api;
 import com.wtfrepo.backend.arena.application.ArenaAdminService;
 import com.wtfrepo.backend.arena.domain.ArenaMatchType;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -26,6 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Validated
 @RequestMapping("/api/v1/admin/arena")
+@Tag(
+    name = "Admin: Arena",
+    description = "Admin endpoints for arena maintenance operations and diagnostics.")
 public class ArenaAdminController {
 
   private final ArenaAdminService arenaAdminService;
@@ -35,9 +44,19 @@ public class ArenaAdminController {
   }
 
   @PostMapping("/force-recalc")
+  @Operation(
+      summary = "Force recalc match pool",
+      description = "Rebuilds arena match pool and returns a match quality snapshot.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Recalc completed")})
   public ResponseEntity<ForceRecalcResponse> forceRecalc(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @AuthenticationPrincipal Jwt jwt,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody(required = false) ForceRecalcRequest request) {
     String adminUserId = ArenaAdminApiSupport.requireAdminUserId(jwt);
     String reason = request == null ? null : request.reason();
@@ -46,9 +65,17 @@ public class ArenaAdminController {
   }
 
   @PostMapping("/reset-elo")
+  @Operation(summary = "Reset Elo", description = "Resets Elo values based on runtime policy.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Reset completed")})
   public ResponseEntity<ResetEloResponse> resetElo(
-      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @AuthenticationPrincipal Jwt jwt,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody(required = false) ResetEloRequest request) {
     String adminUserId = ArenaAdminApiSupport.requireAdminUserId(jwt);
     String reason = request == null ? null : request.reason();
@@ -57,9 +84,17 @@ public class ArenaAdminController {
   }
 
   @GetMapping("/match-quality")
+  @Operation(summary = "Match quality report", description = "Returns current match quality metrics.")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "Report returned")})
   public ResponseEntity<MatchQualityResponse> matchQuality(
-      @RequestHeader(name = RequestIdConstants.HEADER_NAME, required = false) String requestId,
-      @AuthenticationPrincipal Jwt jwt) {
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Optional request correlation id.",
+              required = false)
+          @RequestHeader(name = RequestIdConstants.HEADER_NAME, required = false)
+          String requestId,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     ArenaAdminApiSupport.requireAdminUserId(jwt);
     ArenaAdminService.MatchQualityReport report = arenaAdminService.evaluateMatchQuality();
     return ResponseEntity.ok(MatchQualityResponse.from(report));
