@@ -2,6 +2,7 @@ package com.wtfrepo.backend.shared.outbox;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /** Scheduled driver for outbox relay loop. */
 @Component
-@ConditionalOnBean(OutboxRelayService.class)
+@ConditionalOnBean({EntityManagerFactory.class, OutboxRelayService.class})
 @ConditionalOnProperty(prefix = "app.shared.outbox", name = "relay-enabled", havingValue = "true")
 public class OutboxRelayScheduler {
 

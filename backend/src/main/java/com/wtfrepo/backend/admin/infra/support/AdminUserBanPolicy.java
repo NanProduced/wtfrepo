@@ -5,12 +5,13 @@ import com.wtfrepo.backend.admin.application.model.AdminModels.AdminUserBanRecor
 import com.wtfrepo.backend.shared.security.UserBanPolicy;
 import java.time.Instant;
 import java.util.Optional;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 /** Admin-backed implementation for checking active user bans. */
 @Component
-@ConditionalOnBean(AdminUserBanStore.class)
+@ConditionalOnBean({EntityManagerFactory.class, AdminUserBanStore.class})
 public class AdminUserBanPolicy implements UserBanPolicy {
 
   private final AdminUserBanStore adminUserBanStore;

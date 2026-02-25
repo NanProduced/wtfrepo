@@ -10,7 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 /** Syncs auth-side wallet snapshot on economy balance changes. */
-@Component
+@Component("authBugBalanceChangedOutboxEventHandler")
 @ConditionalOnBean(AuthWalletSnapshotService.class)
 public class BugBalanceChangedOutboxEventHandler implements OutboxStreamEventHandler {
 

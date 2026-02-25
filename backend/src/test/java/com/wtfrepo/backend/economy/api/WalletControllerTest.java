@@ -1,5 +1,6 @@
 package com.wtfrepo.backend.economy.api;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -9,8 +10,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.wtfrepo.backend.economy.application.EconomyWalletService;
+import com.wtfrepo.backend.shared.json.JsonUtils;
+import com.wtfrepo.backend.shared.security.UserBanPolicy;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -23,6 +28,15 @@ class WalletControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockBean private EconomyWalletService economyWalletService;
+
+  @MockBean private UserBanPolicy userBanPolicy;
+
+  @MockBean private JsonUtils jsonUtils;
+
+  @BeforeEach
+  void setUpUserBanPolicy() {
+    when(userBanPolicy.findActiveBan(anyString())).thenReturn(Optional.empty());
+  }
 
   @Test
   void wallet_shouldReturnSingleSourceFields() throws Exception {
@@ -86,4 +100,3 @@ class WalletControllerTest {
     verifyNoInteractions(economyWalletService);
   }
 }
-

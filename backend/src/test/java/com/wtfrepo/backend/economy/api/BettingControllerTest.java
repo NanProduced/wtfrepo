@@ -1,6 +1,7 @@
 package com.wtfrepo.backend.economy.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -14,11 +15,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wtfrepo.backend.economy.application.BettingService;
 import com.wtfrepo.backend.economy.application.support.BettingConstants;
 import com.wtfrepo.backend.economy.application.support.BettingExceptions;
+import com.wtfrepo.backend.shared.json.JsonUtils;
+import com.wtfrepo.backend.shared.security.UserBanPolicy;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -34,6 +39,15 @@ class BettingControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockBean private BettingService bettingService;
+
+  @MockBean private UserBanPolicy userBanPolicy;
+
+  @MockBean private JsonUtils jsonUtils;
+
+  @BeforeEach
+  void setUpUserBanPolicy() {
+    when(userBanPolicy.findActiveBan(anyString())).thenReturn(Optional.empty());
+  }
 
   @Test
   void placeBet_shouldReturnCreated() throws Exception {

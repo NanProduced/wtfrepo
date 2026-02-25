@@ -12,11 +12,11 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.StringUtils;
 
 /** Shared helper methods for admin API endpoints. */
-final class AdminApiSupport {
+public final class AdminApiSupport {
 
   private AdminApiSupport() {}
 
-  static AdminPrincipal requireUserPrincipal(Jwt jwt) {
+  public static AdminPrincipal requireUserPrincipal(Jwt jwt) {
     if (jwt == null || !StringUtils.hasText(jwt.getSubject())) {
       throw AdminExceptions.unauthorized(AdminConstants.Message.AUTH_REQUIRED);
     }
@@ -25,7 +25,7 @@ final class AdminApiSupport {
     return new AdminPrincipal(jwt.getSubject().trim(), username, roles);
   }
 
-  static AdminPrincipal requireAdminPrincipal(Jwt jwt) {
+  public static AdminPrincipal requireAdminPrincipal(Jwt jwt) {
     AdminPrincipal principal = requireUserPrincipal(jwt);
     if (!hasAdminRole(principal.roles())) {
       throw AdminExceptions.forbidden(AdminConstants.Message.FORBIDDEN_ADMIN);

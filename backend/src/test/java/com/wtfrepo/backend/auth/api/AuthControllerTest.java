@@ -20,9 +20,11 @@ import com.wtfrepo.backend.BackendApplication;
 import com.wtfrepo.backend.auth.application.AuthRateLimiter;
 import com.wtfrepo.backend.auth.application.support.AuthConstants;
 import com.wtfrepo.backend.auth.domain.OAuthProvider;
+import com.wtfrepo.backend.shared.security.UserBanPolicy;
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +45,8 @@ import org.springframework.test.web.servlet.MockMvc;
       "app.auth.identity-proof.clock-skew=30s",
       "app.auth.identity-proof.max-ttl=5m",
       "app.auth.economy.initial-bug-grant=5",
+      "app.shared.outbox.relay-enabled=false",
+      "app.shared.outbox.consumer-enabled=false",
       "spring.main.lazy-initialization=true",
       "spring.autoconfigure.exclude="
           + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
@@ -65,10 +69,14 @@ class AuthControllerTest {
   @MockBean
   private AuthRateLimiter authRateLimiter;
 
+  @MockBean
+  private UserBanPolicy userBanPolicy;
+
   @BeforeEach
   void setUpRateLimiter() {
     when(authRateLimiter.allowExchange(anyString())).thenReturn(true);
     when(authRateLimiter.allowRename(anyString())).thenReturn(true);
+    when(userBanPolicy.findActiveBan(anyString())).thenReturn(Optional.empty());
   }
 
   @Test

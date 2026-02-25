@@ -2,6 +2,7 @@ package com.wtfrepo.backend.shared.outbox;
 
 import java.time.Instant;
 import java.util.List;
+import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -12,7 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Relay service that flushes pending outbox rows to MQ transport. */
 @Service
-@ConditionalOnBean({OutboxEventJpaRepository.class, OutboxMessagePublisher.class})
+@ConditionalOnBean({
+  EntityManagerFactory.class,
+  OutboxEventJpaRepository.class,
+  OutboxMessagePublisher.class
+})
 @ConditionalOnProperty(prefix = "app.shared.outbox", name = "relay-enabled", havingValue = "true")
 public class OutboxRelayService {
 

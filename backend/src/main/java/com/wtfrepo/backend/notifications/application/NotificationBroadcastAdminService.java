@@ -3,8 +3,10 @@ package com.wtfrepo.backend.notifications.application;
 import com.wtfrepo.backend.notifications.domain.BroadcastStatus;
 import com.wtfrepo.backend.notifications.infra.persistence.entity.SystemBroadcastJpaEntity;
 import com.wtfrepo.backend.notifications.infra.persistence.repository.SystemBroadcastJpaRepository;
+import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -14,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 /** Admin-side system broadcast workflows in M06. */
 @Service
+@ConditionalOnBean({EntityManagerFactory.class, SystemBroadcastJpaRepository.class})
 public class NotificationBroadcastAdminService {
 
   private static final int DEFAULT_PAGE_SIZE = 20;

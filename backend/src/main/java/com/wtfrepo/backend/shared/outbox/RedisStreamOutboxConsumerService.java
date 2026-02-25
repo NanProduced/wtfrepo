@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
@@ -22,7 +23,7 @@ import org.springframework.stereotype.Service;
  * types to handle by registering {@link OutboxStreamEventHandler} beans.
  */
 @Service
-@ConditionalOnBean(StringRedisTemplate.class)
+@ConditionalOnBean({RedisConnectionFactory.class, StringRedisTemplate.class})
 @ConditionalOnProperty(prefix = "app.shared.outbox", name = "consumer-enabled", havingValue = "true")
 public class RedisStreamOutboxConsumerService {
 

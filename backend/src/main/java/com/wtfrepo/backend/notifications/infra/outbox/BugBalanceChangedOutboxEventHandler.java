@@ -6,10 +6,12 @@ import com.wtfrepo.backend.shared.outbox.OutboxStreamEventHandler;
 import com.wtfrepo.backend.shared.outbox.OutboxStreamMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 /** Handles M03 {@code BugBalanceChangedEvent} for wallet SSE publish. */
-@Component
+@Component("notificationBugBalanceChangedOutboxEventHandler")
+@ConditionalOnBean(WalletOutboxEventConsumerService.class)
 public class BugBalanceChangedOutboxEventHandler implements OutboxStreamEventHandler {
 
   private static final Logger log =

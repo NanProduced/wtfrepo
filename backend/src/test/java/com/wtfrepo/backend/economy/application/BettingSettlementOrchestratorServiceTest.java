@@ -47,7 +47,7 @@ class BettingSettlementOrchestratorServiceTest {
   @Test
   void runSettlementForDate_shouldApplyForceSettleAfterRetryExhausted() {
     LocalDate tradingDay = LocalDate.parse("2026-02-18");
-    Instant now = Instant.parse("2026-02-19T00:06:00Z");
+    Instant now = Instant.now().plusSeconds(60);
     BetPoolJpaEntity firstClosedPool =
         BetPoolJpaEntity.createOpen(
             "sp_settlement_1",
@@ -83,17 +83,17 @@ class BettingSettlementOrchestratorServiceTest {
     when(bettingService.settleClosedPool(eq("sp_settlement_2"), eq(tradingDay), any(Instant.class)))
         .thenReturn(
             new BettingService.ClosedPoolSettlementResult(
-                tradingDay, "sp_settlement_2", "SNAPSHOT_MISSING", true, false),
+                tradingDay, "sp_settlement_2", "SETTLEMENT_FAILED", true, false),
             new BettingService.ClosedPoolSettlementResult(
-                tradingDay, "sp_settlement_2", "SNAPSHOT_MISSING", true, false),
+                tradingDay, "sp_settlement_2", "SETTLEMENT_FAILED", true, false),
             new BettingService.ClosedPoolSettlementResult(
-                tradingDay, "sp_settlement_2", "SNAPSHOT_MISSING", true, false));
+                tradingDay, "sp_settlement_2", "SETTLEMENT_FAILED", true, false));
     when(
             bettingService.forceSettleAfterRetryExhausted(
                 eq("sp_settlement_2"),
                 eq(tradingDay),
                 any(Instant.class),
-                eq("SETTLEMENT_RETRY_EXHAUSTED_SNAPSHOT_MISSING")))
+                eq("SETTLEMENT_RETRY_EXHAUSTED_SETTLEMENT_FAILED")))
         .thenReturn(
             new BettingService.ForceSettleResult(
                 tradingDay,
@@ -126,7 +126,7 @@ class BettingSettlementOrchestratorServiceTest {
             eq("sp_settlement_2"),
             eq(tradingDay),
             any(Instant.class),
-            eq("SETTLEMENT_RETRY_EXHAUSTED_SNAPSHOT_MISSING"));
+            eq("SETTLEMENT_RETRY_EXHAUSTED_SETTLEMENT_FAILED"));
   }
 
   @Test
@@ -159,7 +159,7 @@ class BettingSettlementOrchestratorServiceTest {
     settlementProperties.setRetryMaxAttempts(3);
 
     LocalDate tradingDay = LocalDate.parse("2026-02-18");
-    Instant now = Instant.parse("2026-02-19T00:06:00Z");
+    Instant now = Instant.now().plusSeconds(60);
     BetPoolJpaEntity closedPool =
         BetPoolJpaEntity.createOpen(
             "sp_retry_success",
@@ -183,7 +183,7 @@ class BettingSettlementOrchestratorServiceTest {
                 eq("sp_retry_success"), eq(tradingDay), any(Instant.class)))
         .thenReturn(
             new BettingService.ClosedPoolSettlementResult(
-                tradingDay, "sp_retry_success", "SNAPSHOT_MISSING", false, false),
+                tradingDay, "sp_retry_success", "SETTLEMENT_FAILED", false, false),
             new BettingService.ClosedPoolSettlementResult(
                 tradingDay, "sp_retry_success", "SETTLED_UP", true, true));
 

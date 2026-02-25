@@ -6,10 +6,12 @@ import com.wtfrepo.backend.shared.outbox.OutboxStreamMessage;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 /** Handles M05 {@code CommentMentionEvent} for notifications inbox. */
 @Component
+@ConditionalOnBean(NotificationOutboxEventConsumerService.class)
 public class CommentMentionOutboxEventHandler implements OutboxStreamEventHandler {
 
   private static final Logger log =

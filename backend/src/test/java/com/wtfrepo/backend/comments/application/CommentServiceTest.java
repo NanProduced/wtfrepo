@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.wtfrepo.backend.auth.infra.persistence.entity.AuthUserJpaEntity;
 import com.wtfrepo.backend.auth.infra.persistence.repository.AuthUserJpaRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wtfrepo.backend.comments.application.support.CommentMentionParser;
 import com.wtfrepo.backend.comments.domain.CommentAuthorRepoRoleSnapshot;
 import com.wtfrepo.backend.comments.domain.CommentModerationRiskLevel;
@@ -22,10 +23,13 @@ import com.wtfrepo.backend.comments.infra.persistence.entity.CommentJpaEntity;
 import com.wtfrepo.backend.comments.infra.persistence.entity.CommentReportJpaEntity;
 import com.wtfrepo.backend.comments.infra.persistence.entity.CommentRequestIdempotencyJpaEntity;
 import com.wtfrepo.backend.comments.infra.persistence.repository.CommentJpaRepository;
+import com.wtfrepo.backend.comments.infra.persistence.repository.CommentModerationLogJpaRepository;
 import com.wtfrepo.backend.comments.infra.persistence.repository.CommentReportJpaRepository;
 import com.wtfrepo.backend.comments.infra.persistence.repository.CommentRequestIdempotencyJpaRepository;
 import com.wtfrepo.backend.comments.infra.persistence.repository.CommentResonanceJpaRepository;
 import com.wtfrepo.backend.economy.application.EconomyWalletService;
+import com.wtfrepo.backend.economy.infra.persistence.repository.EconomyLedgerJpaRepository;
+import com.wtfrepo.backend.shared.json.JsonUtils;
 import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
 import com.wtfrepo.backend.shared.outbox.OutboxEventStore;
 import com.wtfrepo.backend.shared.web.ApiException;
@@ -50,28 +54,37 @@ class CommentServiceTest {
   @Mock private CommentRequestIdempotencyJpaRepository idempotencyRepository;
   @Mock private CommentResonanceJpaRepository resonanceRepository;
   @Mock private CommentReportJpaRepository reportRepository;
+  @Mock private CommentModerationLogJpaRepository moderationLogRepository;
   @Mock private AuthUserJpaRepository authUserRepository;
   @Mock private SpecimenJpaRepository specimenRepository;
+  @Mock private CommentAuthorRoleResolver commentAuthorRoleResolver;
   @Mock private EconomyWalletService economyWalletService;
+  @Mock private EconomyLedgerJpaRepository economyLedgerRepository;
   @Mock private OutboxEventStore outboxEventStore;
 
   private CommentService commentService;
+  private JsonUtils jsonUtils;
 
   @BeforeEach
   void setUp() {
     CommentsPolicyProperties policyProperties = new CommentsPolicyProperties();
+    jsonUtils = new JsonUtils(new ObjectMapper());
     commentService =
         new CommentService(
             commentRepository,
             idempotencyRepository,
             resonanceRepository,
             reportRepository,
+            moderationLogRepository,
             authUserRepository,
             specimenRepository,
+            commentAuthorRoleResolver,
             new CommentMentionParser(),
             economyWalletService,
+            economyLedgerRepository,
             outboxEventStore,
-            policyProperties);
+            policyProperties,
+            jsonUtils);
   }
 
   @Test
@@ -695,11 +708,14 @@ class CommentServiceTest {
     assertThat(result.reported()).isTrue();
     assertThat(result.ticketId()).startsWith("tkt_cmtrpt_");
     verify(reportRepository, times(1)).save(any(CommentReportJpaEntity.class));
-    verify(outboxEventStore, times(1)).append(any(OutboxEventCommand.class));
+    verify(outboxEventStore, times(3)).append(any(OutboxEventCommand.class));
 
     ArgumentCaptor<OutboxEventCommand> outboxCaptor = ArgumentCaptor.forClass(OutboxEventCommand.class);
-    verify(outboxEventStore).append(outboxCaptor.capture());
-    assertThat(outboxCaptor.getValue().eventType()).isEqualTo("CommentReportedEvent");
+    verify(outboxEventStore, times(3)).append(outboxCaptor.capture());
+    List<String> eventTypes =
+        outboxCaptor.getAllValues().stream().map(OutboxEventCommand::eventType).toList();
+    assertThat(eventTypes)
+        .contains("CommentReportedEvent", "CommentCountChangedEvent", "CommentStatusChangedEvent");
   }
 
   @Test

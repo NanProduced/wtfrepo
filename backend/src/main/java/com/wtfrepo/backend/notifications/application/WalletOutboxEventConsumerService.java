@@ -4,12 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.wtfrepo.backend.shared.json.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /** Publishes wallet SSE payloads from economy outbox events. */
 @Service
+@ConditionalOnBean(StringRedisTemplate.class)
 public class WalletOutboxEventConsumerService {
 
   private static final Logger log =

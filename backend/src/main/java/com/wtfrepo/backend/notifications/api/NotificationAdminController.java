@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Internal M07 -> M06 admin endpoints for broadcast delivery. */
 @RestController
+@ConditionalOnBean(NotificationBroadcastAdminService.class)
 @Validated
 @RequestMapping("/api/v1/admin/notifications")
 @Tag(name = "Admin: Notifications", description = "Internal admin notifications endpoints.")

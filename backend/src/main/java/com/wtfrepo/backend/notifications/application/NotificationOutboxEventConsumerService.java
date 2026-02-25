@@ -13,8 +13,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ import org.springframework.util.StringUtils;
  * <p>This service centralizes cross-module notification intake so handler classes remain thin.
  */
 @Service
+@ConditionalOnBean({EntityManagerFactory.class, UserNotificationJpaRepository.class})
 public class NotificationOutboxEventConsumerService {
 
   private static final Logger log =

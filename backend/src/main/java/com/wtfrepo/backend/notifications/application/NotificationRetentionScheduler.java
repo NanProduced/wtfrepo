@@ -3,14 +3,17 @@ package com.wtfrepo.backend.notifications.application;
 import com.wtfrepo.backend.notifications.infra.persistence.repository.UserNotificationJpaRepository;
 import java.time.Duration;
 import java.time.Instant;
+import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Scheduled cleanup for notification retention window. */
 @Component
+@ConditionalOnBean({EntityManagerFactory.class, UserNotificationJpaRepository.class})
 public class NotificationRetentionScheduler {
 
   private static final Logger log = LoggerFactory.getLogger(NotificationRetentionScheduler.class);

@@ -11,6 +11,7 @@ import com.wtfrepo.backend.notifications.infra.persistence.entity.UserNotificati
 import com.wtfrepo.backend.notifications.infra.persistence.repository.SystemBroadcastJpaRepository;
 import com.wtfrepo.backend.notifications.infra.persistence.repository.UserBroadcastCheckpointJpaRepository;
 import com.wtfrepo.backend.notifications.infra.persistence.repository.UserNotificationJpaRepository;
+import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Locale;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -27,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 /** M06 notifications application service aligned with contract v0.1 public scope. */
 @Service
+@ConditionalOnBean({EntityManagerFactory.class, UserNotificationJpaRepository.class})
 public class NotificationService {
 
   private static final Logger log = LoggerFactory.getLogger(NotificationService.class);

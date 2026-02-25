@@ -8,6 +8,7 @@ import com.wtfrepo.backend.admin.infra.persistence.entity.AdminUserBanRecordJpaE
 import com.wtfrepo.backend.admin.infra.persistence.repository.AdminUserBanRecordJpaRepository;
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-@ConditionalOnBean(AdminUserBanRecordJpaRepository.class)
+@ConditionalOnBean({EntityManagerFactory.class, AdminUserBanRecordJpaRepository.class})
 public class JpaAdminUserBanStore implements AdminUserBanStore {
 
   private final AdminUserBanRecordJpaRepository repository;

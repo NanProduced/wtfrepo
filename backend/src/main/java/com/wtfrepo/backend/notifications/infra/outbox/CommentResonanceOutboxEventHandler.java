@@ -5,10 +5,12 @@ import com.wtfrepo.backend.shared.outbox.OutboxStreamEventHandler;
 import com.wtfrepo.backend.shared.outbox.OutboxStreamMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 /** Handles M05 {@code CommentResonanceEvent} for notifications inbox. */
 @Component
+@ConditionalOnBean(NotificationOutboxEventConsumerService.class)
 public class CommentResonanceOutboxEventHandler implements OutboxStreamEventHandler {
 
   private static final Logger log =

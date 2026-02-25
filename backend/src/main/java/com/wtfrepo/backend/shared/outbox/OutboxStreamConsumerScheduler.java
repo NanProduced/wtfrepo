@@ -4,12 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** Scheduled driver for Redis Stream outbox consumer polling loop. */
 @Component
-@ConditionalOnBean(RedisStreamOutboxConsumerService.class)
+@ConditionalOnBean({RedisConnectionFactory.class, RedisStreamOutboxConsumerService.class})
 @ConditionalOnProperty(prefix = "app.shared.outbox", name = "consumer-enabled", havingValue = "true")
 public class OutboxStreamConsumerScheduler {
 

@@ -10,6 +10,7 @@ import com.wtfrepo.backend.notifications.application.support.NotificationsExcept
 import com.wtfrepo.backend.shared.web.RequestIdConstants;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Public notifications API for M06 pager experience. */
 @RestController
+@ConditionalOnBean(NotificationService.class)
 @Validated
 @RequestMapping("/api/v1")
 public class NotificationsController {
