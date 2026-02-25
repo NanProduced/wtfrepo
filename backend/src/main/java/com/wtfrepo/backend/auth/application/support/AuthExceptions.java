@@ -19,6 +19,10 @@ public final class AuthExceptions {
     return new ApiException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, message);
   }
 
+  public static ApiException forbidden(String message) {
+    return new ApiException(ErrorCode.FORBIDDEN, HttpStatus.FORBIDDEN, message);
+  }
+
   public static ApiException validation(String message) {
     return new ApiException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, message);
   }

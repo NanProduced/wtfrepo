@@ -66,4 +66,12 @@ public class SpecimenArenaMetricsJpaEntity {
     this.delta24h += eloDelta;
     this.updatedAt = Instant.now();
   }
+
+  public void applyEloUpdate(int eloBefore, int eloAfter) {
+    int delta = eloAfter - eloBefore;
+    this.elo = eloAfter;
+    this.votes += 1;
+    this.delta24h += delta;
+    this.updatedAt = Instant.now();
+  }
 }

@@ -8,6 +8,7 @@ import com.wtfrepo.backend.auth.application.support.AuthExceptions;
 import com.wtfrepo.backend.auth.application.support.AuthRequestFingerprintCalculator;
 import com.wtfrepo.backend.auth.domain.AuthUser;
 import com.wtfrepo.backend.auth.domain.OAuthProvider;
+import com.wtfrepo.backend.shared.security.UserBanPolicy;
 import com.wtfrepo.backend.shared.security.IssuedToken;
 import com.wtfrepo.backend.shared.security.TokenService;
 import java.util.Optional;
@@ -31,6 +32,7 @@ public class AuthService {
   private final UsernamePolicy usernamePolicy;
   private final AuthRequestFingerprintCalculator requestFingerprintCalculator;
   private final AuthEconomyBridge authEconomyBridge;
+  private final UserBanPolicy userBanPolicy;
 
   public AuthService(
       AuthUserStore authUserStore,
@@ -41,7 +43,8 @@ public class AuthService {
       OAuthIdentityVerifier oAuthIdentityVerifier,
       UsernamePolicy usernamePolicy,
       AuthRequestFingerprintCalculator requestFingerprintCalculator,
-      AuthEconomyBridge authEconomyBridge) {
+      AuthEconomyBridge authEconomyBridge,
+      UserBanPolicy userBanPolicy) {
     this.authUserStore = authUserStore;
     this.tokenService = tokenService;
     this.oAuthStateStore = oAuthStateStore;
@@ -51,6 +54,7 @@ public class AuthService {
     this.usernamePolicy = usernamePolicy;
     this.requestFingerprintCalculator = requestFingerprintCalculator;
     this.authEconomyBridge = authEconomyBridge;
+    this.userBanPolicy = userBanPolicy;
   }
 
   /**
@@ -90,6 +94,10 @@ public class AuthService {
         authUserStore
             .findByProviderIdentity(request.provider(), providerSubject)
             .orElseGet(() -> createUser(request.provider(), providerSubject));
+
+    if (userBanPolicy.findActiveBan(userRecord.userId()).isPresent()) {
+      throw AuthExceptions.forbidden(AuthConstants.Message.USER_BANNED);
+    }
 
     IssuedToken issuedToken = tokenService.issueToken(userRecord.toAuthUser());
 

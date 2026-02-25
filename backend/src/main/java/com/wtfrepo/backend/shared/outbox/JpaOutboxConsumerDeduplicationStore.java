@@ -11,14 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * JPA-backed consumer dedupe store for stream idempotency.
  *
- * <p>This implementation intentionally has no in-memory fallback. It is enabled only when outbox
- * JPA/consumer switches are on.
+ * <p>This implementation intentionally has no in-memory fallback. It is enabled only when the
+ * consumer switch is on.
  */
 @Component
 @ConditionalOnBean(OutboxConsumerEventJpaRepository.class)
 @ConditionalOnProperty(
     prefix = "app.shared.outbox",
-    name = {"jpa-enabled", "consumer-enabled", "consumer-dedupe-enabled"},
+    name = {"consumer-enabled", "consumer-dedupe-enabled"},
     havingValue = "true")
 public class JpaOutboxConsumerDeduplicationStore implements OutboxConsumerDeduplicationStore {
 

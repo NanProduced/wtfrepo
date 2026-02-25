@@ -31,16 +31,14 @@ app:
       email: ${ADMIN_BOOTSTRAP_EMAIL:}
   shared:
     outbox:
-      # Keep JPA outbox write path disabled until entity/schema review is completed.
-      jpa-enabled: ${OUTBOX_JPA_ENABLED:false}
-      # Relay is off by default in MVP stage; enable explicitly when Redis stream infra is ready.
-      relay-enabled: ${OUTBOX_RELAY_ENABLED:false}
+      # Relay is enabled by default for cross-module integration.
+      relay-enabled: ${OUTBOX_RELAY_ENABLED:true}
       relay-batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}
       relay-fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:1000}
       relay-max-attempts: ${OUTBOX_RELAY_MAX_ATTEMPTS:20}
       redis-stream-key: ${OUTBOX_REDIS_STREAM_KEY:wtfrepo:outbox:events}
-      # Consumer group skeleton is intentionally disabled until concrete module handlers are ready.
-      consumer-enabled: ${OUTBOX_CONSUMER_ENABLED:false}
+      # Consumer group is enabled by default for cross-module integration.
+      consumer-enabled: ${OUTBOX_CONSUMER_ENABLED:true}
       consumer-group: ${OUTBOX_CONSUMER_GROUP:wtfrepo:outbox:consumer}
       consumer-name: ${OUTBOX_CONSUMER_NAME:backend-consumer}
       consumer-batch-size: ${OUTBOX_CONSUMER_BATCH_SIZE:100}
@@ -75,6 +73,15 @@ app:
       chief-conclusion-threshold: ${COMMENTS_CHIEF_CONCLUSION_THRESHOLD:10}
       # Placeholder shown for soft-deleted comments in list responses.
       deleted-placeholder: ${COMMENTS_DELETED_PLACEHOLDER:此病历已封存}
+  notifications:
+    list-default-limit: ${NOTIFY_LIST_DEFAULT_LIMIT:20}
+    list-max-limit: ${NOTIFY_LIST_MAX_LIMIT:50}
+    retention-days: ${NOTIFY_RETENTION_DAYS:90}
+    aggregation-window-minutes: ${NOTIFY_AGG_WINDOW_MINUTES:10}
+    broadcast-batch-size: ${NOTIFY_BROADCAST_BATCH_SIZE:500}
+    unread-cache-ttl: ${NOTIFY_UNREAD_CACHE_TTL:0s}
+    unread-key-prefix: ${NOTIFY_UNREAD_KEY_PREFIX:notify:unread:}
+    cleanup-cron: ${NOTIFY_CLEANUP_CRON:0 0 3 * * *}
   auth:
     identity-proof:
       issuer: ${AUTH_IDENTITY_PROOF_ISSUER:wtf-repo-bff}

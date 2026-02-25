@@ -45,6 +45,7 @@ public final class AdminConstants {
     public static final String ALERT_NOT_FOUND = "alert_not_found";
     public static final String INVALID_BAN_TYPE = "invalid_ban_type";
     public static final String INVALID_BAN_REQUEST = "invalid_ban_request";
+    public static final String INVALID_BROADCAST_REQUEST = "invalid_broadcast_request";
     public static final String BAN_NOT_FOUND = "ban_not_found";
     public static final String USER_NOT_FOUND = "user_not_found";
 

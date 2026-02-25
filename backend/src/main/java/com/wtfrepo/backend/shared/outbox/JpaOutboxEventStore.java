@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Primary
 @ConditionalOnBean(OutboxEventJpaRepository.class)
-@ConditionalOnProperty(prefix = "app.shared.outbox", name = "jpa-enabled", havingValue = "true")
 public class JpaOutboxEventStore implements OutboxEventStore {
 
   private static final Logger log = LoggerFactory.getLogger(JpaOutboxEventStore.class);

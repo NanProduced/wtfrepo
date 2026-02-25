@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 /**
  * Compatibility no-op adapter used only when economy persistence beans are absent.
  *
- * <p>In normal runtime, {@link M03BackedArenaEconomyPort} should be selected. This fallback keeps
+ * <p>In normal runtime, {@link EconomyBackedArenaEconomyPort} should be selected. This fallback keeps
  * lightweight test/scaffold contexts bootable without pulling full economy infrastructure.
  */
 @Deprecated(forRemoval = true)

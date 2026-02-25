@@ -70,4 +70,13 @@ public class AuthUserJpaEntity {
     this.updatedAt = Instant.now();
   }
 
+  public boolean refreshBugBalance(long bugBalance) {
+    if (this.bugBalance == bugBalance) {
+      return false;
+    }
+    this.bugBalance = bugBalance;
+    this.updatedAt = Instant.now();
+    return true;
+  }
+
 }

@@ -175,6 +175,8 @@ public final class SpecimenModels {
 
   public record DrawerGithubJumpWarningResult(String title, String body) {}
 
+  public record TopRoastSummary(String commentId, int resonanceCount, boolean chiefConclusion) {}
+
   public record DrawerResult(
       DrawerSpecimenResult specimen,
       DrawerGithubMetaResult githubMeta,

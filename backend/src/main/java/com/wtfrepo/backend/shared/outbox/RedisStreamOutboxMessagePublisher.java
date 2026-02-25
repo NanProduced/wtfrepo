@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 /** Redis Stream publisher for outbox events. */
 @Component
 @ConditionalOnBean(StringRedisTemplate.class)
-@ConditionalOnProperty(prefix = "app.shared.outbox", name = {"relay-enabled", "jpa-enabled"}, havingValue = "true")
+@ConditionalOnProperty(prefix = "app.shared.outbox", name = "relay-enabled", havingValue = "true")
 public class RedisStreamOutboxMessagePublisher implements OutboxMessagePublisher {
 
   private final StringRedisTemplate stringRedisTemplate;

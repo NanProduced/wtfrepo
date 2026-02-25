@@ -28,6 +28,9 @@ import com.wtfrepo.backend.admin.domain.AdminSafetyTicketStatus;
 import com.wtfrepo.backend.auth.application.AuthUserRecord;
 import com.wtfrepo.backend.auth.application.AuthUserStore;
 import com.wtfrepo.backend.auth.domain.AuthUser;
+import com.wtfrepo.backend.notifications.application.NotificationBroadcastAdminService;
+import com.wtfrepo.backend.notifications.application.NotificationBroadcastAdminService.BroadcastPage;
+import com.wtfrepo.backend.notifications.application.NotificationBroadcastAdminService.BroadcastRecord;
 import com.wtfrepo.backend.auth.domain.UserRole;
 import com.wtfrepo.backend.shared.idempotency.IdempotentOperationExecutor;
 import com.wtfrepo.backend.shared.idempotency.IdempotencyConflictException;
@@ -63,6 +66,7 @@ public class AdminPlatformService {
   private final AdminAlertStore adminAlertStore;
   private final AdminUserBanStore adminUserBanStore;
   private final AuthUserStore authUserStore;
+  private final NotificationBroadcastAdminService broadcastAdminService;
   private final TokenService tokenService;
   private final TokenBlacklistStore tokenBlacklistStore;
   private final AdminRequestFingerprintCalculator requestFingerprintCalculator;
@@ -77,6 +81,7 @@ public class AdminPlatformService {
       AdminAlertStore adminAlertStore,
       AdminUserBanStore adminUserBanStore,
       AuthUserStore authUserStore,
+      NotificationBroadcastAdminService broadcastAdminService,
       TokenService tokenService,
       TokenBlacklistStore tokenBlacklistStore,
       AdminRequestFingerprintCalculator requestFingerprintCalculator,
@@ -89,6 +94,7 @@ public class AdminPlatformService {
     this.adminAlertStore = adminAlertStore;
     this.adminUserBanStore = adminUserBanStore;
     this.authUserStore = authUserStore;
+    this.broadcastAdminService = broadcastAdminService;
     this.tokenService = tokenService;
     this.tokenBlacklistStore = tokenBlacklistStore;
     this.requestFingerprintCalculator = requestFingerprintCalculator;
@@ -471,6 +477,68 @@ public class AdminPlatformService {
     }
   }
 
+  public BroadcastRecord createBroadcast(
+      AdminPrincipal principal,
+      String requestId,
+      String idempotencyKey,
+      String title,
+      String body,
+      String targetUrl,
+      String ipAddress,
+      String userAgent) {
+    requireAdmin(principal);
+    String resolvedIdempotencyKey = resolveIdempotencyKey(requestId, idempotencyKey);
+    validateIdempotencyKey(resolvedIdempotencyKey);
+
+    String normalizedTitle = normalizeRequiredText(title);
+    String normalizedBody = normalizeOptionalText(body);
+    String normalizedTargetUrl = normalizeOptionalText(targetUrl);
+
+    String requestFingerprint =
+        requestFingerprintCalculator.fingerprint(
+            "broadcast|"
+                + principal.userId()
+                + "|"
+                + normalizedTitle
+                + "|"
+                + normalizedBody
+                + "|"
+                + normalizedTargetUrl);
+
+    try {
+      return idempotentExecutor
+          .execute(
+              "admin:broadcast:create",
+              resolvedIdempotencyKey,
+              requestFingerprint,
+              () -> {
+                BroadcastRecord record =
+                    broadcastAdminService.create(
+                        principal.userId(), normalizedTitle, normalizedBody, normalizedTargetUrl);
+                appendAuditLog(
+                    principal.userId(),
+                    AdminAuditActions.BROADCAST_SEND,
+                    AdminAuditTargetType.BROADCAST,
+                    record.broadcastUid(),
+                    null,
+                    record,
+                    null,
+                    requestId,
+                    ipAddress,
+                    userAgent);
+                return record;
+              })
+          .response();
+    } catch (IdempotencyConflictException ex) {
+      throw AdminExceptions.conflict(AdminConstants.Message.IDEMPOTENCY_CONFLICT);
+    }
+  }
+
+  public BroadcastPage listBroadcasts(AdminPrincipal principal, Integer page, Integer pageSize) {
+    requireAdmin(principal);
+    return broadcastAdminService.list(page, pageSize);
+  }
+
   public AdminAlertPage listAlerts(
       AdminPrincipal principal, Integer page, Integer pageSize, Boolean acknowledged) {
     requireSuperAdmin(principal);
@@ -770,6 +838,20 @@ public class AdminPlatformService {
       throw AdminExceptions.validation(AdminConstants.Message.INVALID_EMAIL);
     }
     return email.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private String normalizeRequiredText(String value) {
+    if (!StringUtils.hasText(value)) {
+      throw AdminExceptions.validation(AdminConstants.Message.INVALID_BROADCAST_REQUEST);
+    }
+    return value.trim();
+  }
+
+  private String normalizeOptionalText(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    return value.trim();
   }
 
   private List<String> roleRecordListToNames(List<AdminRoleRecord> records) {

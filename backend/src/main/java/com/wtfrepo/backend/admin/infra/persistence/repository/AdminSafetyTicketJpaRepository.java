@@ -2,6 +2,8 @@ package com.wtfrepo.backend.admin.infra.persistence.repository;
 
 import com.wtfrepo.backend.admin.domain.AdminSafetyTicketStatus;
 import com.wtfrepo.backend.admin.infra.persistence.entity.AdminSafetyTicketJpaEntity;
+import java.util.Collection;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +15,8 @@ public interface AdminSafetyTicketJpaRepository
       AdminSafetyTicketStatus status, Pageable pageable);
 
   Page<AdminSafetyTicketJpaEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+  Optional<AdminSafetyTicketJpaEntity>
+      findFirstByTargetTypeAndTargetIdAndStatusInOrderByCreatedAtDesc(
+          String targetType, String targetId, Collection<AdminSafetyTicketStatus> statuses);
 }

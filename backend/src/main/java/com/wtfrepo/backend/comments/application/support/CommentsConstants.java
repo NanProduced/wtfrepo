@@ -63,6 +63,7 @@ public final class CommentsConstants {
     public static final String TRIGGER_ACTION_BLOCK = "BLOCK";
     public static final String TRIGGER_ACTION_UNBLOCK = "UNBLOCK";
     public static final String TRIGGER_ACTION_APPROVE = "APPROVE";
+    public static final String TRIGGER_ACTION_REPORT = "REPORT";
 
     public static final String ACTOR_TYPE_USER = "USER";
     public static final String ACTOR_TYPE_ADMIN = "ADMIN";

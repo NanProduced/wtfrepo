@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -302,8 +303,8 @@ public class AdminPlatformController {
   }
 
   @PostMapping("/broadcasts")
-  @Operation(summary = "Create broadcast (pending)")
-  public ResponseEntity<AdminPlaceholderResponse> createBroadcast(
+  @Operation(summary = "Create broadcast")
+  public ResponseEntity<AdminBroadcastResponse> createBroadcast(
       @Parameter(
               in = ParameterIn.HEADER,
               name = RequestIdConstants.HEADER_NAME,
@@ -319,14 +320,25 @@ public class AdminPlatformController {
           @RequestHeader(name = AdminConstants.Header.IDEMPOTENCY_KEY, required = false)
           String idempotencyKey,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-      @Valid @RequestBody(required = false) Object request) {
-    AdminApiSupport.requireAdminPrincipal(jwt);
-    return notImplemented("/api/v1/admin/platform/broadcasts");
+      @Valid @RequestBody AdminBroadcastCreateRequest request,
+      HttpServletRequest servletRequest) {
+    AdminPrincipal principal = AdminApiSupport.requireAdminPrincipal(jwt);
+    var record =
+        adminPlatformService.createBroadcast(
+            principal,
+            requestId,
+            idempotencyKey,
+            request.title(),
+            request.body(),
+            request.targetUrl(),
+            resolveClientIp(servletRequest),
+            resolveUserAgent(servletRequest));
+    return ResponseEntity.ok(AdminBroadcastResponse.from(record));
   }
 
   @GetMapping("/broadcasts")
-  @Operation(summary = "List broadcasts (pending)")
-  public ResponseEntity<AdminPlaceholderResponse> listBroadcasts(
+  @Operation(summary = "List broadcasts")
+  public ResponseEntity<AdminBroadcastPageResponse> listBroadcasts(
       @Parameter(
               in = ParameterIn.HEADER,
               name = RequestIdConstants.HEADER_NAME,
@@ -334,9 +346,12 @@ public class AdminPlatformController {
               required = true)
           @RequestHeader(RequestIdConstants.HEADER_NAME)
           String requestId,
-      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    AdminApiSupport.requireAdminPrincipal(jwt);
-    return notImplemented("/api/v1/admin/platform/broadcasts");
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+      @RequestParam(name = "page", required = false) Integer page,
+      @RequestParam(name = "pageSize", required = false) Integer pageSize) {
+    AdminPrincipal principal = AdminApiSupport.requireAdminPrincipal(jwt);
+    var pageResult = adminPlatformService.listBroadcasts(principal, page, pageSize);
+    return ResponseEntity.ok(AdminBroadcastPageResponse.from(pageResult));
   }
 
   @GetMapping("/audit-logs")
@@ -464,6 +479,11 @@ public class AdminPlatformController {
 
   public record AdminManagerCreateRequest(@NotBlank String userId) {}
 
+  public record AdminBroadcastCreateRequest(
+      @NotBlank @Size(max = 120) String title,
+      @Size(max = 5000) String body,
+      @Size(max = 500) String targetUrl) {}
+
   public record AdminTokenResponse(
       String accessToken,
       String tokenType,
@@ -516,6 +536,49 @@ public class AdminPlatformController {
   }
 
   public record AdminSafetyTicketUpdateRequest(@NotBlank String status, String resolution) {}
+
+  public record AdminBroadcastResponse(
+      String broadcastUid,
+      String title,
+      String body,
+      String targetUrl,
+      String status,
+      int totalRecipients,
+      int deliveredCount,
+      String createdBy,
+      Instant createdAt,
+      Instant completedAt) {
+
+    static AdminBroadcastResponse from(
+        com.wtfrepo.backend.notifications.application.NotificationBroadcastAdminService.BroadcastRecord record) {
+      if (record == null) {
+        return null;
+      }
+      return new AdminBroadcastResponse(
+          record.broadcastUid(),
+          record.title(),
+          record.body(),
+          record.targetUrl(),
+          record.status(),
+          record.totalRecipients(),
+          record.deliveredCount(),
+          record.createdBy(),
+          record.createdAt(),
+          record.completedAt());
+    }
+  }
+
+  public record AdminBroadcastPageResponse(
+      List<AdminBroadcastResponse> items, AdminPaginationResponse pagination) {
+
+    static AdminBroadcastPageResponse from(
+        com.wtfrepo.backend.notifications.application.NotificationBroadcastAdminService.BroadcastPage page) {
+      List<AdminBroadcastResponse> items =
+          page.items().stream().map(AdminBroadcastResponse::from).toList();
+      return new AdminBroadcastPageResponse(
+          items, new AdminPaginationResponse(page.page(), page.pageSize(), page.total(), page.totalPages()));
+    }
+  }
 
   public record AdminSafetyTicketResponse(
       String id,

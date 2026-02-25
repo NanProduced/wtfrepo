@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 /** Scheduled driver for outbox relay loop. */
 @Component
 @ConditionalOnBean(OutboxRelayService.class)
-@ConditionalOnProperty(prefix = "app.shared.outbox", name = {"relay-enabled", "jpa-enabled"}, havingValue = "true")
+@ConditionalOnProperty(prefix = "app.shared.outbox", name = "relay-enabled", havingValue = "true")
 public class OutboxRelayScheduler {
 
   private static final Logger log = LoggerFactory.getLogger(OutboxRelayScheduler.class);

@@ -68,5 +68,8 @@ Thumbs.db
 .env.*
 
 # AI / MCP tools dir
+**/.codex/
 **/.serena/
 **/.gemini/
+**/.claude/
+/frontend/.playwright-mcp/

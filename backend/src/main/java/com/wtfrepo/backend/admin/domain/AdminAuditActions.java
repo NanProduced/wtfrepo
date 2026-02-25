@@ -18,4 +18,5 @@ public final class AdminAuditActions {
   public static final String ALERT_ACK = "ALERT_ACK";
   public static final String USER_BAN = "USER_BAN";
   public static final String USER_UNBAN = "USER_UNBAN";
+  public static final String BROADCAST_SEND = "BROADCAST_SEND";
 }

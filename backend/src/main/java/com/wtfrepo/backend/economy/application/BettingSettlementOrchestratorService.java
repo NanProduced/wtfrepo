@@ -7,6 +7,7 @@ import com.wtfrepo.backend.economy.infra.persistence.entity.BetPoolJpaEntity;
 import com.wtfrepo.backend.economy.infra.persistence.repository.BetPoolJpaRepository;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,7 @@ public class BettingSettlementOrchestratorService {
         betPoolJpaRepository.findAllByIdDateAndStatusOrderByIdSpecimenIdAsc(
             tradingDay, BetPoolStatus.CLOSED);
 
+    List<String> snapshotMissingPools = new ArrayList<>();
     int initialSettledPools = 0;
     int retryCandidatePools = 0;
     int retryAttempts = 0;
@@ -72,12 +74,16 @@ public class BettingSettlementOrchestratorService {
     int fallbackFailedPools = 0;
 
     Instant retryDeadlineAt =
-        Instant.now().plusSeconds(Math.max(1L, settlementProperties.getRetryDeadlineSeconds()));
+        executionAt.plusSeconds(Math.max(1L, settlementProperties.getRetryDeadlineSeconds()));
     for (BetPoolJpaEntity closedPool : closedPools) {
       BettingService.ClosedPoolSettlementResult settleResult =
           bettingService.settleClosedPool(closedPool.getSpecimenId(), tradingDay, executionAt);
       if (settleResult.settled()) {
         initialSettledPools++;
+        continue;
+      }
+      if (isSnapshotMissingOutcome(settleResult.outcome())) {
+        snapshotMissingPools.add(closedPool.getSpecimenId());
         continue;
       }
       retryCandidatePools++;
@@ -95,6 +101,28 @@ public class BettingSettlementOrchestratorService {
       if (!retryFallbackResult.success()) {
         fallbackFailedPools++;
       }
+    }
+
+    SnapshotWaitResult snapshotWaitResult = SnapshotWaitResult.empty();
+    if (!snapshotMissingPools.isEmpty()) {
+      snapshotWaitResult =
+          waitForSnapshotsAndSettle(snapshotMissingPools, tradingDay, retryDeadlineAt);
+      initialSettledPools += snapshotWaitResult.settledAfterWait();
+      retryCandidatePools += snapshotWaitResult.retryCandidatePools();
+      retryAttempts += snapshotWaitResult.retryAttempts();
+      retryRecoveredPools += snapshotWaitResult.retryRecoveredPools();
+      fallbackSettledPools += snapshotWaitResult.fallbackSettledPools();
+      fallbackFailedPools += snapshotWaitResult.fallbackFailedPools();
+      log.info(
+          "betting_settlement_snapshot_wait tradingDay={} waitingPools={} settledAfterWait={} stillMissing={} retryCandidatePools={} retryAttempts={} fallbackSettledPools={} fallbackFailedPools={}",
+          tradingDay,
+          snapshotMissingPools.size(),
+          snapshotWaitResult.settledAfterWait(),
+          snapshotWaitResult.stillMissingPools(),
+          snapshotWaitResult.retryCandidatePools(),
+          snapshotWaitResult.retryAttempts(),
+          snapshotWaitResult.fallbackSettledPools(),
+          snapshotWaitResult.fallbackFailedPools());
     }
 
     log.info(
@@ -190,6 +218,88 @@ public class BettingSettlementOrchestratorService {
     return RetryFallbackResult.failed(retryAttempts, forceSettleResult.outcome());
   }
 
+  private SnapshotWaitResult waitForSnapshotsAndSettle(
+      List<String> snapshotMissingPools, LocalDate tradingDay, Instant retryDeadlineAt) {
+    if (snapshotMissingPools.isEmpty()) {
+      return SnapshotWaitResult.empty();
+    }
+
+    if (retryDeadlineAt == null || Instant.now().isAfter(retryDeadlineAt)) {
+      return SnapshotWaitResult.pendingOnly(snapshotMissingPools.size());
+    }
+
+    List<String> pendingPools = new ArrayList<>(snapshotMissingPools);
+    int settledAfterWait = 0;
+    int retryCandidatePools = 0;
+    int retryAttempts = 0;
+    int retryRecoveredPools = 0;
+    int fallbackSettledPools = 0;
+    int fallbackFailedPools = 0;
+
+    int attempt = 0;
+    while (!pendingPools.isEmpty() && Instant.now().isBefore(retryDeadlineAt)) {
+      List<String> stillMissing = new ArrayList<>();
+      for (String specimenId : pendingPools) {
+        BettingService.ClosedPoolSettlementResult retryResult =
+            bettingService.settleClosedPool(specimenId, tradingDay, Instant.now());
+        if (retryResult.settled()) {
+          settledAfterWait++;
+          continue;
+        }
+        if (isSnapshotMissingOutcome(retryResult.outcome())) {
+          stillMissing.add(specimenId);
+          continue;
+        }
+
+        retryCandidatePools++;
+        RetryFallbackResult retryFallbackResult =
+            runRetryAndFallback(specimenId, tradingDay, retryDeadlineAt, retryResult.outcome());
+        retryAttempts += retryFallbackResult.retryAttempts();
+        if (retryFallbackResult.settledByRetry()) {
+          retryRecoveredPools++;
+        }
+        if (retryFallbackResult.forceSettled()) {
+          fallbackSettledPools++;
+        }
+        if (!retryFallbackResult.success()) {
+          fallbackFailedPools++;
+        }
+      }
+
+      pendingPools = stillMissing;
+      if (pendingPools.isEmpty() || Instant.now().isAfter(retryDeadlineAt)) {
+        break;
+      }
+      sleepSnapshotWaitIfNeeded(++attempt);
+    }
+
+    return new SnapshotWaitResult(
+        settledAfterWait,
+        pendingPools.size(),
+        retryCandidatePools,
+        retryAttempts,
+        retryRecoveredPools,
+        fallbackSettledPools,
+        fallbackFailedPools);
+  }
+
+  private void sleepSnapshotWaitIfNeeded(int attempt) {
+    long backoffMs = resolveRetryBackoffMs(attempt);
+    if (backoffMs <= 0L) {
+      backoffMs = 1000L;
+    }
+    try {
+      Thread.sleep(backoffMs);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      log.warn("betting_settlement_snapshot_wait_interrupted attempt={} backoffMs={}", attempt, backoffMs);
+    }
+  }
+
+  private boolean isSnapshotMissingOutcome(String outcome) {
+    return "SNAPSHOT_MISSING".equals(outcome);
+  }
+
   private void sleepBeforeNextRetryIfNeeded(
       String specimenId, LocalDate tradingDay, int attempt, int maxRetryAttempts) {
     if (attempt >= maxRetryAttempts) {
@@ -269,6 +379,24 @@ public class BettingSettlementOrchestratorService {
 
     private static RetryFallbackResult failed(int retryAttempts, String outcome) {
       return new RetryFallbackResult(retryAttempts, false, false, false, outcome);
+    }
+  }
+
+  private record SnapshotWaitResult(
+      int settledAfterWait,
+      int stillMissingPools,
+      int retryCandidatePools,
+      int retryAttempts,
+      int retryRecoveredPools,
+      int fallbackSettledPools,
+      int fallbackFailedPools) {
+
+    private static SnapshotWaitResult empty() {
+      return new SnapshotWaitResult(0, 0, 0, 0, 0, 0, 0);
+    }
+
+    private static SnapshotWaitResult pendingOnly(int pendingPools) {
+      return new SnapshotWaitResult(0, pendingPools, 0, 0, 0, 0, 0);
     }
   }
 }

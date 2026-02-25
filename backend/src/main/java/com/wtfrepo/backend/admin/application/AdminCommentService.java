@@ -2,16 +2,19 @@ package com.wtfrepo.backend.admin.application;
 
 import com.wtfrepo.backend.admin.application.model.AdminModels.AdminAuditLogEntry;
 import com.wtfrepo.backend.admin.application.model.AdminModels.AdminPrincipal;
+import com.wtfrepo.backend.admin.application.model.AdminModels.AdminSafetyTicketRecord;
 import com.wtfrepo.backend.admin.application.support.AdminConstants;
 import com.wtfrepo.backend.admin.application.support.AdminExceptions;
 import com.wtfrepo.backend.admin.application.support.AdminRequestFingerprintCalculator;
 import com.wtfrepo.backend.admin.domain.AdminAuditActions;
 import com.wtfrepo.backend.admin.domain.AdminAuditTargetType;
+import com.wtfrepo.backend.admin.domain.AdminSafetyTicketStatus;
 import com.wtfrepo.backend.comments.application.CommentService;
 import com.wtfrepo.backend.comments.application.model.CommentAdminModels;
 import com.wtfrepo.backend.shared.idempotency.IdempotentOperationExecutor;
 import com.wtfrepo.backend.shared.idempotency.IdempotencyConflictException;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,16 +29,19 @@ public class AdminCommentService {
 
   private final CommentService commentService;
   private final AdminAuditLogStore adminAuditLogStore;
+  private final AdminSafetyTicketStore adminSafetyTicketStore;
   private final AdminRequestFingerprintCalculator requestFingerprintCalculator;
   private final IdempotentOperationExecutor idempotentExecutor;
 
   public AdminCommentService(
       CommentService commentService,
       AdminAuditLogStore adminAuditLogStore,
+      AdminSafetyTicketStore adminSafetyTicketStore,
       AdminRequestFingerprintCalculator requestFingerprintCalculator,
       IdempotentOperationExecutor idempotentExecutor) {
     this.commentService = commentService;
     this.adminAuditLogStore = adminAuditLogStore;
+    this.adminSafetyTicketStore = adminSafetyTicketStore;
     this.requestFingerprintCalculator = requestFingerprintCalculator;
     this.idempotentExecutor = idempotentExecutor;
   }
@@ -81,6 +87,10 @@ public class AdminCommentService {
                     requestId,
                     ipAddress,
                     userAgent);
+                maybeResolveSafetyTicket(
+                    commentId,
+                    principal.userId(),
+                    "comment_blocked");
                 log.info(
                     "admin_comment_block requestId={} operatorId={} commentId={}",
                     requestId,
@@ -130,6 +140,10 @@ public class AdminCommentService {
                     requestId,
                     ipAddress,
                     userAgent);
+                maybeResolveSafetyTicket(
+                    commentId,
+                    principal.userId(),
+                    "comment_unblocked");
                 log.info(
                     "admin_comment_unblock requestId={} operatorId={} commentId={}",
                     requestId,
@@ -179,6 +193,10 @@ public class AdminCommentService {
                     requestId,
                     ipAddress,
                     userAgent);
+                maybeResolveSafetyTicket(
+                    commentId,
+                    principal.userId(),
+                    "comment_approved");
                 log.info(
                     "admin_comment_approve requestId={} operatorId={} commentId={}",
                     requestId,
@@ -228,6 +246,10 @@ public class AdminCommentService {
                     requestId,
                     ipAddress,
                     userAgent);
+                maybeResolveSafetyTicket(
+                    commentId,
+                    principal.userId(),
+                    "comment_deleted");
                 log.info(
                     "admin_comment_delete requestId={} operatorId={} commentId={}",
                     requestId,
@@ -280,6 +302,23 @@ public class AdminCommentService {
     if (!StringUtils.hasText(idempotencyKey) || idempotencyKey.length() > 128) {
       throw AdminExceptions.validation(AdminConstants.Message.INVALID_IDEMPOTENCY_KEY);
     }
+  }
+
+  private void maybeResolveSafetyTicket(
+      String commentId, String operatorId, String resolution) {
+    Optional<AdminSafetyTicketRecord> ticketOpt =
+        adminSafetyTicketStore.findLatestActiveByTarget("COMMENT", commentId);
+    if (ticketOpt.isEmpty()) {
+      return;
+    }
+    AdminSafetyTicketRecord ticket = ticketOpt.get();
+    adminSafetyTicketStore.updateStatus(
+        ticket.id(),
+        AdminSafetyTicketStatus.ACTIONED,
+        resolution,
+        operatorId,
+        Instant.now(),
+        Instant.now());
   }
 
   private record CommentModerationAuditMeta(

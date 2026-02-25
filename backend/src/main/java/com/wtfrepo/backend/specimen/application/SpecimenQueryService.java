@@ -21,6 +21,7 @@ import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DetailResul
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DetailSeoMetaResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DetailSpecimenResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DetailTagResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.TopRoastSummary;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DrawerGithubJumpWarningResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DrawerGithubMetaResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DrawerMetricsResult;
@@ -36,6 +37,7 @@ import com.wtfrepo.backend.specimen.domain.RepoIdentityRole;
 import com.wtfrepo.backend.specimen.domain.SpecimenStatus;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenArenaMetricsJpaEntity;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenCodeHighlightJpaEntity;
+import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenCommunityMetricsJpaEntity;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenGithubMetadataJpaEntity;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenJpaEntity;
 import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenOfficialCommentaryJpaEntity;
@@ -45,6 +47,7 @@ import com.wtfrepo.backend.specimen.infra.persistence.entity.SpecimenTagJpaEntit
 import com.wtfrepo.backend.specimen.infra.persistence.entity.TagDefinitionJpaEntity;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenArenaMetricsJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenCodeHighlightJpaRepository;
+import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenCommunityMetricsJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenGithubMetadataJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenOfficialCommentaryJpaRepository;
@@ -77,6 +80,7 @@ public class SpecimenQueryService {
   private final SpecimenJpaRepository specimenJpaRepository;
   private final SpecimenGithubMetadataJpaRepository specimenGithubMetadataJpaRepository;
   private final SpecimenArenaMetricsJpaRepository specimenArenaMetricsJpaRepository;
+  private final SpecimenCommunityMetricsJpaRepository specimenCommunityMetricsJpaRepository;
   private final SpecimenReadmeExcerptJpaRepository specimenReadmeExcerptJpaRepository;
   private final SpecimenOfficialCommentaryJpaRepository specimenOfficialCommentaryJpaRepository;
   private final SpecimenCodeHighlightJpaRepository specimenCodeHighlightJpaRepository;
@@ -90,6 +94,7 @@ public class SpecimenQueryService {
       SpecimenJpaRepository specimenJpaRepository,
       SpecimenGithubMetadataJpaRepository specimenGithubMetadataJpaRepository,
       SpecimenArenaMetricsJpaRepository specimenArenaMetricsJpaRepository,
+      SpecimenCommunityMetricsJpaRepository specimenCommunityMetricsJpaRepository,
       SpecimenReadmeExcerptJpaRepository specimenReadmeExcerptJpaRepository,
       SpecimenOfficialCommentaryJpaRepository specimenOfficialCommentaryJpaRepository,
       SpecimenCodeHighlightJpaRepository specimenCodeHighlightJpaRepository,
@@ -101,6 +106,7 @@ public class SpecimenQueryService {
     this.specimenJpaRepository = specimenJpaRepository;
     this.specimenGithubMetadataJpaRepository = specimenGithubMetadataJpaRepository;
     this.specimenArenaMetricsJpaRepository = specimenArenaMetricsJpaRepository;
+    this.specimenCommunityMetricsJpaRepository = specimenCommunityMetricsJpaRepository;
     this.specimenReadmeExcerptJpaRepository = specimenReadmeExcerptJpaRepository;
     this.specimenOfficialCommentaryJpaRepository = specimenOfficialCommentaryJpaRepository;
     this.specimenCodeHighlightJpaRepository = specimenCodeHighlightJpaRepository;
@@ -215,6 +221,8 @@ public class SpecimenQueryService {
     SpecimenGithubMetadataJpaEntity metadata =
         specimenGithubMetadataJpaRepository.findById(specimenId).orElse(null);
     SpecimenArenaMetricsJpaEntity metrics = specimenArenaMetricsJpaRepository.findById(specimenId).orElse(null);
+    SpecimenCommunityMetricsJpaEntity communityMetrics =
+        specimenCommunityMetricsJpaRepository.findById(specimenId).orElse(null);
 
     SpecimenReadmeExcerptJpaEntity excerpt =
         specimenReadmeExcerptJpaRepository.findBySpecimenIdOrderByPriorityAsc(specimenId).stream()
@@ -241,7 +249,7 @@ public class SpecimenQueryService {
         toDrawerMetrics(metrics),
         excerpt == null ? null : new DrawerReadmeExcerptResult(excerpt.getExcerptType(), excerpt.getText()),
         drawerTags,
-        null,
+        toTopRoastSummary(communityMetrics),
         false,
         new DrawerGithubJumpWarningResult("⚠️ 警告：高辐射区域", "您即将进入 GitHub，请确认已穿戴防护服"));
   }
@@ -254,6 +262,8 @@ public class SpecimenQueryService {
     SpecimenArenaMetricsJpaEntity metrics = specimenArenaMetricsJpaRepository.findById(specimenId).orElse(null);
     SpecimenOfficialCommentaryJpaEntity commentary =
         specimenOfficialCommentaryJpaRepository.findById(specimenId).orElse(null);
+    SpecimenCommunityMetricsJpaEntity communityMetrics =
+        specimenCommunityMetricsJpaRepository.findById(specimenId).orElse(null);
 
     List<SpecimenReadmeExcerptJpaEntity> excerpts =
         specimenReadmeExcerptJpaRepository.findBySpecimenIdOrderByPriorityAsc(specimenId);
@@ -294,7 +304,7 @@ public class SpecimenQueryService {
             metrics == null ? 1200 : metrics.getElo(),
             metrics == null ? 0.0D : metrics.getHype(),
             metrics == null ? 0L : metrics.getVotes(),
-            0L),
+            communityMetrics == null ? 0L : communityMetrics.getCommentCount()),
         new DetailReadmeResult(
             null,
             excerpts.stream()
@@ -375,6 +385,16 @@ public class SpecimenQueryService {
         metrics == null ? 1200 : metrics.getElo(),
         metrics == null ? 0.0D : metrics.getHype(),
         metrics == null ? 0L : metrics.getVotes());
+  }
+
+  private TopRoastSummary toTopRoastSummary(SpecimenCommunityMetricsJpaEntity metrics) {
+    if (metrics == null || !StringUtils.hasText(metrics.getTopRoastCommentId())) {
+      return null;
+    }
+    return new TopRoastSummary(
+        metrics.getTopRoastCommentId(),
+        metrics.getTopRoastResonanceCount(),
+        metrics.isTopRoastChiefConclusion());
   }
 
   private DetailGithubMetaResult toDetailGithubMeta(

@@ -147,7 +147,7 @@ public class ArenaVoteService {
         arenaEconomyPort.deductBug(
             userId,
             policySnapshot.bugCost(),
-            "ARENA_VOTE",
+            ArenaConstants.Economy.REF_TYPE_BATTLE,
             command.battleId(),
             idempotencyKey,
             policySnapshot);

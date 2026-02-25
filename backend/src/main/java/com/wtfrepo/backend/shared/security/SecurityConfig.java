@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,7 +36,8 @@ public class SecurityConfig {
       "{\"code\":\"INTERNAL_ERROR\",\"message\":\"Internal server error\"}";
 
   @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http, JsonUtils jsonUtils)
+  SecurityFilterChain securityFilterChain(
+      HttpSecurity http, JsonUtils jsonUtils, UserBanEnforcementFilter userBanEnforcementFilter)
       throws Exception {
     http
         .csrf(AbstractHttpConfigurer::disable)
@@ -94,6 +96,8 @@ public class SecurityConfig {
                                 "Access denied",
                                 jsonUtils)))
         .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+
+    http.addFilterAfter(userBanEnforcementFilter, BearerTokenAuthenticationFilter.class);
 
     return http.build();
   }

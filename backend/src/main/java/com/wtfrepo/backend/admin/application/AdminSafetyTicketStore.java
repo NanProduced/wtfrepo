@@ -13,6 +13,8 @@ public interface AdminSafetyTicketStore {
 
   Optional<AdminSafetyTicketRecord> findById(String ticketId);
 
+  Optional<AdminSafetyTicketRecord> findLatestActiveByTarget(String targetType, String targetId);
+
   AdminSafetyTicketRecord create(
       AdminSafetyTicketSource source,
       String reporterId,

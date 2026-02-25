@@ -28,6 +28,13 @@ public final class ArenaConstants {
     private RateLimit() {}
   }
 
+  public static final class Economy {
+
+    public static final String REF_TYPE_BATTLE = "BATTLE";
+
+    private Economy() {}
+  }
+
   public static final class Message {
 
     public static final String AUTH_REQUIRED = "Authentication required";

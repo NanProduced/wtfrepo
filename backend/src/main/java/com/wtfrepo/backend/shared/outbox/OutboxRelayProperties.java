@@ -14,18 +14,11 @@ import java.time.Duration;
 public class OutboxRelayProperties {
 
   /**
-   * Enables JPA-backed outbox persistence.
-   *
-   * <p>Default is disabled until DB schema is finalized and initialized.
-   */
-  private boolean jpaEnabled = false;
-
-  /**
    * Enables scheduled relay from outbox table to MQ transport.
    *
-   * <p>Should only be enabled after outbox table and Redis infrastructure are ready.
+   * <p>Default is enabled for cross-module integration environments.
    */
-  private boolean relayEnabled = false;
+  private boolean relayEnabled = true;
 
   /** Number of pending outbox rows processed per relay tick. */
   private int relayBatchSize = 100;
@@ -42,9 +35,9 @@ public class OutboxRelayProperties {
   /**
    * Enables Redis Stream consumer-group polling loop.
    *
-   * <p>Default is disabled until concrete domain consumers are ready (for example M03 handlers).
+   * <p>Default is enabled for cross-module integration environments.
    */
-  private boolean consumerEnabled = false;
+  private boolean consumerEnabled = true;
 
   /** Consumer group name used by shared outbox stream poller. */
   private String consumerGroup = "wtfrepo:outbox:consumer";

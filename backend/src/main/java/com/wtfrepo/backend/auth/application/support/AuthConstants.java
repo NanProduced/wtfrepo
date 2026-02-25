@@ -69,6 +69,7 @@ public final class AuthConstants {
     public static final String USERNAME_CONTAINS_FORBIDDEN_KEYWORDS =
         "Username contains forbidden keywords";
     public static final String FAILED_TO_ALLOCATE_USERNAME = "Failed to allocate username";
+    public static final String USER_BANNED = "User is banned";
 
     private Message() {}
   }

@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Relay service that flushes pending outbox rows to MQ transport. */
 @Service
 @ConditionalOnBean({OutboxEventJpaRepository.class, OutboxMessagePublisher.class})
-@ConditionalOnProperty(prefix = "app.shared.outbox", name = {"relay-enabled", "jpa-enabled"}, havingValue = "true")
+@ConditionalOnProperty(prefix = "app.shared.outbox", name = "relay-enabled", havingValue = "true")
 public class OutboxRelayService {
 
   private static final Logger log = LoggerFactory.getLogger(OutboxRelayService.class);

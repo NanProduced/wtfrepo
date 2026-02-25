@@ -35,6 +35,18 @@ public class JpaAdminSafetyTicketStore implements AdminSafetyTicketStore {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public Optional<AdminSafetyTicketRecord> findLatestActiveByTarget(
+      String targetType, String targetId) {
+    List<AdminSafetyTicketStatus> activeStatuses =
+        List.of(AdminSafetyTicketStatus.OPEN, AdminSafetyTicketStatus.IN_REVIEW);
+    return repository
+        .findFirstByTargetTypeAndTargetIdAndStatusInOrderByCreatedAtDesc(
+            targetType, targetId, activeStatuses)
+        .map(this::toRecord);
+  }
+
+  @Override
   @Transactional
   public AdminSafetyTicketRecord create(
       AdminSafetyTicketSource source,

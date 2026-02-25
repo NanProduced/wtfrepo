@@ -433,6 +433,7 @@ public class CommentService {
       throw CommentsExceptions.duplicateReport(CommentsConstants.Message.DUPLICATE_REPORT);
     }
 
+    applyReportModeration(commentEntity, normalizedUserId);
     appendCommentReportedEvent(reportEntity);
     return new ReportResult(true, reportEntity.getTicketId());
   }
@@ -1150,6 +1151,32 @@ public class CommentService {
             Instant.now()));
   }
 
+  private void applyReportModeration(CommentJpaEntity commentEntity, String reporterUserId) {
+    CommentStatus currentStatus = commentEntity.getStatus();
+    if (currentStatus != CommentStatus.ACTIVE) {
+      return;
+    }
+    boolean wasChief = commentEntity.clearChiefConclusion();
+    commentEntity.updateStatus(CommentStatus.PENDING_REVIEW);
+    commentRepository.save(commentEntity);
+    appendModerationLog(
+        commentEntity,
+        CommentModerationAction.REVIEW,
+        CommentModerationActorType.SYSTEM,
+        reporterUserId,
+        commentEntity.getModerationReasonCode());
+    appendCommentCountChangedEvent(
+        commentEntity, -1, CommentsConstants.Outbox.TRIGGER_ACTION_REPORT);
+    appendCommentStatusChangedEvent(
+        commentEntity,
+        currentStatus,
+        CommentStatus.PENDING_REVIEW,
+        CommentsConstants.Outbox.ACTOR_TYPE_USER);
+    if (wasChief) {
+      appendTopRoastUpdatedEvent(commentEntity);
+    }
+  }
+
   private void appendCommentCountChangedEvent(
       CommentJpaEntity commentEntity, int delta, String triggerAction) {
     CommentCountChangedEventPayload payload =
@@ -1165,6 +1192,7 @@ public class CommentService {
             Instant.now()));
   }
 
+  // Status-change events are retained for future consumers; no current handler is required.
   private void appendCommentStatusChangedEvent(
       CommentJpaEntity commentEntity,
       CommentStatus oldStatus,

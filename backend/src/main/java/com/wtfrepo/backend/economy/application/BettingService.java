@@ -499,6 +499,8 @@ public class BettingService {
               bettingPolicyProperties.getPolicyVersion(),
               bettingPolicyProperties.getPolicySource()),
           EconomyLedgerType.FORCE_SETTLE_REFUND);
+      appendBetOrderSettledOutboxEvent(
+          pendingOrder, "FORCE_SETTLED", false, executionAt);
       refundedOrders++;
       refundedAmount += pendingOrder.getAmount();
     }
@@ -669,6 +671,10 @@ public class BettingService {
       if (pendingOrder.getDirection() != outcomeDirection) {
         pendingOrder.markLost(now);
         lostOrders++;
+        if (!pendingOrder.isHouse()) {
+          appendBetOrderSettledOutboxEvent(
+              pendingOrder, outcomeDirection.name(), false, now);
+        }
         continue;
       }
 
@@ -689,6 +695,10 @@ public class BettingService {
       wonOrders++;
       totalPayout += payout;
       moonDoomBonusTotal += moonDoomBonus;
+      if (!pendingOrder.isHouse()) {
+        appendBetOrderSettledOutboxEvent(
+            pendingOrder, outcomeDirection.name(), moonDoomBonus > 0L, now);
+      }
     }
 
     creditRake(totalRake, poolRefId);
@@ -1186,6 +1196,33 @@ public class BettingService {
             occurredAt));
   }
 
+  private void appendBetOrderSettledOutboxEvent(
+      BetOrderJpaEntity order, String outcome, boolean isMoonDoom, Instant occurredAt) {
+    if (order == null || order.isHouse()) {
+      return;
+    }
+
+    String normalizedOutcome =
+        StringUtils.hasText(outcome) ? outcome.trim() : "UNKNOWN";
+    long payout = order.getPayout() == null ? 0L : order.getPayout();
+    outboxEventStore.append(
+        new OutboxEventCommand(
+            "BET_ORDER",
+            order.getOrderId(),
+            "BetOrderSettledEvent",
+            betOrderSettledEventKey(order.getOrderId()),
+            new BetOrderSettledEventPayload(
+                order.getOrderId(),
+                order.getUserId(),
+                order.getSpecimenId(),
+                order.getDirection().name(),
+                normalizedOutcome,
+                payout,
+                order.getSettleDate(),
+                isMoonDoom),
+            occurredAt));
+  }
+
   private boolean isForceSettleCandidatePoolStatus(BetPoolStatus status) {
     return status == BetPoolStatus.OPEN || status == BetPoolStatus.CLOSED;
   }
@@ -1232,6 +1269,10 @@ public class BettingService {
 
   private String moonDoomEventKey(String specimenId, LocalDate tradingDay) {
     return "betting:moon-doom:" + specimenId + ":" + tradingDay;
+  }
+
+  private String betOrderSettledEventKey(String orderId) {
+    return "betting:order-settled:" + orderId;
   }
 
   private BigDecimal toScale2(BigDecimal rawValue) {
@@ -1510,6 +1551,16 @@ public class BettingService {
       String outcome,
       long totalPayout,
       long totalRake,
+      boolean isMoonDoom) {}
+
+  private record BetOrderSettledEventPayload(
+      String orderId,
+      String userId,
+      String specimenId,
+      String direction,
+      String outcome,
+      long payout,
+      LocalDate settleDate,
       boolean isMoonDoom) {}
 
   private record MoonDoomEventPayload(

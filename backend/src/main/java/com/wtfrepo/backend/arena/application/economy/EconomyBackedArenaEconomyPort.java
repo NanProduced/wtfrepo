@@ -21,11 +21,11 @@ import org.springframework.stereotype.Component;
 @Component
 @Primary
 @ConditionalOnBean(EconomyWalletJpaRepository.class)
-public class M03BackedArenaEconomyPort implements ArenaEconomyPort {
+public class EconomyBackedArenaEconomyPort implements ArenaEconomyPort {
 
   private final EconomyWalletService economyWalletService;
 
-  public M03BackedArenaEconomyPort(EconomyWalletService economyWalletService) {
+  public EconomyBackedArenaEconomyPort(EconomyWalletService economyWalletService) {
     this.economyWalletService = economyWalletService;
   }
 
