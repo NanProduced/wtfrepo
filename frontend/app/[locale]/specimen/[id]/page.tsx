@@ -1,0 +1,628 @@
+/* eslint-disable @next/next/no-img-element */
+import { backendFetch } from "@/shared/lib/backend-client";
+import { SpecimenDetailData } from "@/shared/types/specimen";
+import { SpecimenTagGroup } from "@/shared/components/specimen/tag-group";
+import { HypeActions } from "@/shared/components/specimen/hype-actions";
+import { WatchlistToggleButton } from "@/modules/specimen/components/watchlist-toggle-button";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Activity,
+  CalendarDays,
+  ChevronLeft,
+  Code2,
+  ExternalLink,
+  FileText,
+  GitFork,
+  GitPullRequest,
+  Globe2,
+  Hash,
+  MessageCircle,
+  ShieldAlert,
+  Siren,
+  Star,
+  Terminal,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
+
+interface SpecimenPageProps {
+  params: Promise<{ id: string; locale: string }>;
+}
+
+type SupportedLocale = "zh" | "en";
+type LocalizedCopy = Partial<Record<SupportedLocale, string>>;
+
+function resolveLocalizedCopy(copy: LocalizedCopy | undefined, locale: SupportedLocale, fallback: string) {
+  const value = copy?.[locale];
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+  return fallback;
+}
+
+function formatDateLabel(timestamp: string | undefined, locale: SupportedLocale) {
+  if (!timestamp) {
+    return "-";
+  }
+
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(parsed);
+}
+
+function formatRelativeLabel(timestamp: string | undefined, locale: SupportedLocale) {
+  if (!timestamp) {
+    return "-";
+  }
+
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+
+  const diffMs = parsed.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const rtf = new Intl.RelativeTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
+    numeric: "auto",
+  });
+
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (absMs < hour) {
+    return rtf.format(Math.round(diffMs / minute), "minute");
+  }
+  if (absMs < day * 7) {
+    return rtf.format(Math.round(diffMs / hour), "hour");
+  }
+  return rtf.format(Math.round(diffMs / day), "day");
+}
+
+function formatCompactNumber(value: number | undefined, locale: SupportedLocale) {
+  if (typeof value !== "number") {
+    return "-";
+  }
+
+  return new Intl.NumberFormat(locale === "zh" ? "zh-CN" : "en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+interface TrendPoint {
+  at: string;
+  value: number;
+}
+
+function buildFallbackTrend(seed: number, points = 12): TrendPoint[] {
+  const now = Date.now();
+  const data: TrendPoint[] = [];
+  let value = seed;
+
+  for (let index = points - 1; index >= 0; index--) {
+    const wave = Math.sin(index / 2.2) * Math.max(seed * 0.015, 2);
+    const drift = (index % 2 === 0 ? 1 : -1) * Math.max(seed * 0.004, 1);
+    value = Math.max(1, Math.round(value + wave + drift));
+    data.push({
+      at: new Date(now - index * 60 * 60 * 1000).toISOString(),
+      value,
+    });
+  }
+
+  return data;
+}
+
+function buildSparklinePath(values: number[], width: number, height: number) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = Math.max(1, max - min);
+
+  return values
+    .map((value, index) => {
+      const x = (index / Math.max(1, values.length - 1)) * width;
+      const y = height - ((value - min) / spread) * height;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function DetailSection({
+  title,
+  icon,
+  monoTitle = false,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  monoTitle?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-zinc-900/60 p-5 md:p-6 backdrop-blur-xl">
+      <div className="mb-4 flex items-center gap-2 border-b border-white/10 pb-3">
+        <span className="text-primary">{icon}</span>
+        <h2 className={monoTitle ? "font-mono text-sm tracking-wider text-zinc-200" : "text-sm font-semibold text-zinc-100"}>
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-xs">
+      <span className="text-zinc-500">{label}</span>
+      <span className="text-right font-mono text-zinc-200">{value}</span>
+    </div>
+  );
+}
+
+export async function generateMetadata({ params }: SpecimenPageProps): Promise<Metadata> {
+  const { id, locale } = await params;
+  const preferredLocale: SupportedLocale = locale.startsWith("zh") ? "zh" : "en";
+  const t = await getTranslations({ locale, namespace: "specimen.detail" });
+
+  try {
+    const data = await backendFetch<SpecimenDetailData>(`/specimens/${id}`);
+    const oneLiner = resolveLocalizedCopy(
+      data.officialCommentary?.oneLiner,
+      preferredLocale,
+      t("defaults.no_diagnosis")
+    );
+    const description = data.githubMeta.description?.trim() || oneLiner || t("meta.description_fallback");
+
+    return {
+      title: t("meta.title", { repo: data.specimen.repoFullName }),
+      description,
+      openGraph: {
+        title: t("meta.open_graph_title", { repo: data.specimen.repoFullName }),
+        description,
+        ...(data.githubMeta.owner?.avatarUrl ? { images: [data.githubMeta.owner.avatarUrl] } : {}),
+      },
+    };
+  } catch {
+    return { title: t("meta.not_found_title") };
+  }
+}
+
+export default async function SpecimenDetailPage({ params }: SpecimenPageProps) {
+  const { id, locale } = await params;
+  const preferredLocale: SupportedLocale = locale.startsWith("zh") ? "zh" : "en";
+  const t = await getTranslations({ locale, namespace: "specimen.detail" });
+
+  let data: SpecimenDetailData;
+  try {
+    data = await backendFetch<SpecimenDetailData>(`/specimens/${id}`);
+  } catch (error) {
+    console.error("Failed to fetch specimen detail:", error);
+    return notFound();
+  }
+
+  const { specimen, githubMeta, metrics, readme, tags, officialCommentary, codeHighlights, repoIdentity } = data;
+
+  const [ownerPart, repoPart] = specimen.repoFullName.split("/");
+  const oneLiner = resolveLocalizedCopy(
+    officialCommentary?.oneLiner,
+    preferredLocale,
+    t("defaults.no_diagnosis")
+  );
+  const arenaReason = resolveLocalizedCopy(
+    officialCommentary?.arenaReason,
+    preferredLocale,
+    t("defaults.no_arena_reason")
+  );
+
+  const resolveExcerptTypeLabel = (excerptType: string) => {
+    const normalizedType = excerptType.trim().toUpperCase();
+    if (normalizedType === "FUNNY") {
+      return t("readme.excerpt_types.funny");
+    }
+    if (normalizedType === "SUMMARY") {
+      return t("readme.excerpt_types.summary");
+    }
+    if (normalizedType === "HIGHLIGHT") {
+      return t("readme.excerpt_types.highlight");
+    }
+    return excerptType;
+  };
+
+  const readmeExcerpts = readme?.excerpts || [];
+  const highlights = codeHighlights || [];
+  const contributors = repoIdentity?.contributors || [];
+  const eloSeries =
+    (data.eloHistory ?? []).map((point) => ({
+      at: point.at,
+      value: point.elo,
+    })) || [];
+  const trendSeries = eloSeries.length > 1 ? eloSeries : buildFallbackTrend(metrics.elo, 14);
+  const trendPath = buildSparklinePath(
+    trendSeries.map((point) => point.value),
+    640,
+    180
+  );
+  const trendMin = trendSeries.length > 0 ? Math.min(...trendSeries.map((point) => point.value)) : metrics.elo;
+  const trendMax = trendSeries.length > 0 ? Math.max(...trendSeries.map((point) => point.value)) : metrics.elo;
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-background pb-20 pt-24 text-foreground">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:28px_28px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_900px_at_50%_120px,rgba(217,70,239,0.18),transparent)]" />
+
+      <div className="relative z-10 mx-auto max-w-7xl px-4 md:px-6">
+        <nav className="mb-6 flex items-center justify-between">
+          <Link
+            href={`/${locale}/archive`}
+            className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300 transition-colors hover:border-primary/50 hover:text-primary"
+          >
+            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            {t("nav.back_to_archive")}
+          </Link>
+
+          <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/50 px-3 py-2 text-[11px] text-zinc-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            {t("nav.dossier_online")}
+          </div>
+        </nav>
+
+        <section className="rounded-3xl border border-white/10 bg-zinc-900/70 p-5 md:p-7 backdrop-blur-xl">
+          <div className="flex flex-col gap-5 md:flex-row md:items-start">
+            <div className="relative">
+              <div className="h-20 w-20 overflow-hidden rounded-2xl border border-white/15 bg-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] md:h-24 md:w-24">
+                <img
+                  src={githubMeta.owner.avatarUrl}
+                  alt={githubMeta.owner.login}
+                  className="h-full w-full object-cover grayscale contrast-125 transition duration-300 hover:grayscale-0"
+                />
+              </div>
+              <div className="absolute -bottom-2 -right-2 rounded-md border border-black bg-primary px-2 py-0.5 font-mono text-[10px] font-semibold text-black">
+                {t("hero.badge")}
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-3">
+              <p className="font-mono text-xs tracking-wider text-primary">
+                {ownerPart || githubMeta.owner.login} /
+              </p>
+              <h1 className="font-mono text-2xl font-semibold tracking-tight text-zinc-100 md:text-4xl">{repoPart || specimen.repoFullName}</h1>
+
+              <div className="flex flex-wrap gap-2">
+                {githubMeta.topics?.length > 0 ? (
+                  githubMeta.topics.map((topic) => (
+                    <span
+                      key={topic}
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-zinc-950/80 px-2 py-1 font-mono text-[10px] text-zinc-300"
+                    >
+                      <Hash className="h-3 w-3 text-zinc-500" />
+                      {topic}
+                    </span>
+                  ))
+                ) : (
+                  <span className="rounded-md border border-dashed border-white/10 px-2 py-1 font-mono text-[10px] text-zinc-500">
+                    {t("hero.no_topics")}
+                  </span>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm leading-7 text-zinc-200">{githubMeta.description || oneLiner}</p>
+              </div>
+
+              <SpecimenTagGroup tags={tags} variant="outline" className="gap-2" />
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-3">
+              <p className="mb-1 text-[11px] text-zinc-500">{t("stats.primary_language")}</p>
+              <p className="font-mono text-sm text-zinc-100">{githubMeta.languages?.[0]?.name || t("stats.unknown_language")}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-3">
+              <p className="mb-1 text-[11px] text-zinc-500">{t("stats.stars")}</p>
+              <p className="font-mono text-sm text-zinc-100">{githubMeta.stargazersCount.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-3">
+              <p className="mb-1 text-[11px] text-zinc-500">{t("stats.last_push")}</p>
+              <p className="font-mono text-sm text-zinc-100">{formatRelativeLabel(githubMeta.pushedAt, preferredLocale)}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <main className="space-y-6 xl:col-span-8">
+            <DetailSection title={t("section.market_pulse")} icon={<Activity className="h-4 w-4" />}>
+              <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-zinc-400">{t("market.trend_intraday")}</p>
+                  <div className="inline-flex items-center gap-3 text-xs text-zinc-500">
+                    <span>{t("market.max", { value: trendMax })}</span>
+                    <span>{t("market.min", { value: trendMin })}</span>
+                  </div>
+                </div>
+                <svg viewBox="0 0 640 180" className="h-44 w-full">
+                  <defs>
+                    <linearGradient id="elo-line" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#d946ef" stopOpacity="0.95" />
+                      <stop offset="100%" stopColor="#d946ef" stopOpacity="0.25" />
+                    </linearGradient>
+                  </defs>
+                  <path d={trendPath} fill="none" stroke="url(#elo-line)" strokeWidth="3" />
+                </svg>
+                <p className="mt-2 text-[11px] text-zinc-500">
+                  {t("market.fallback_note")}
+                </p>
+              </div>
+            </DetailSection>
+
+            <DetailSection title={t("section.official_commentary")} icon={<Siren className="h-4 w-4" />}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-primary">{t("commentary.diagnosis_label")}</p>
+                  <p className="text-sm leading-7 text-zinc-200">&quot;{oneLiner}&quot;</p>
+                </div>
+                <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-violet-300">{t("commentary.arena_reason_label")}</p>
+                  <p className="text-sm leading-7 text-zinc-300">{arenaReason}</p>
+                </div>
+              </div>
+            </DetailSection>
+
+            <DetailSection title={t("section.readme_excerpts")} icon={<FileText className="h-4 w-4" />} monoTitle>
+              {readmeExcerpts.length > 0 ? (
+                <div className="space-y-3">
+                  {readmeExcerpts.map((excerpt, index) => (
+                    <article key={`${excerpt.excerptType}-${index}`} className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                      <p className="mb-2 font-mono text-[11px] tracking-wider text-primary">{resolveExcerptTypeLabel(excerpt.excerptType)}</p>
+                      <p className="text-sm leading-7 text-zinc-300">{excerpt.text}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
+                  {t("readme.empty")}
+                </div>
+              )}
+            </DetailSection>
+
+            <DetailSection title={t("section.code_highlights")} icon={<Terminal className="h-4 w-4" />} monoTitle>
+              {highlights.length > 0 ? (
+                <div className="space-y-4">
+                  {highlights.map((highlight, index) => (
+                    <article key={`${highlight.title}-${index}`} className="rounded-xl border border-white/10 bg-black/70">
+                      <header className="flex items-center justify-between border-b border-white/10 px-4 py-2">
+                        <p className="font-mono text-xs text-zinc-300">{highlight.title}</p>
+                        <p className="font-mono text-[11px] text-primary">{highlight.codeLanguage}</p>
+                      </header>
+                      <pre className="overflow-x-auto px-4 py-3 text-xs text-emerald-300">
+                        <code>{highlight.snippet}</code>
+                      </pre>
+                      <footer className="border-t border-white/10 px-4 py-2 text-xs text-zinc-500">{highlight.explainText}</footer>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
+                  {t("code.empty")}
+                </div>
+              )}
+            </DetailSection>
+
+            <DetailSection title={t("section.comments_preview")} icon={<MessageCircle className="h-4 w-4" />}>
+              <div className="space-y-4">
+                <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-400">
+                  {t("comments.intro")}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                    <p className="mb-2 text-xs font-semibold tracking-wide text-primary">{t("comments.top_roast_label")}</p>
+                    <p className="text-sm text-zinc-500">{t("comments.top_roast_pending")}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                    <p className="mb-2 text-xs font-semibold tracking-wide text-zinc-300">{t("comments.identity_badges_label")}</p>
+                    <p className="text-sm text-zinc-500">
+                      {t("comments.identity_badges_desc")}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-mono text-[10px] text-primary">{t("comments.owner")}</span>
+                      <span className="rounded-md border border-violet-400/40 bg-violet-500/10 px-2 py-1 font-mono text-[10px] text-violet-300">{t("comments.contributor")}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                    <p className="mb-2 text-xs text-zinc-500">{t("comments.composer_label")}</p>
+                    <div className="h-16 rounded-lg border border-dashed border-white/10 bg-zinc-900/80 px-3 py-2 text-xs text-zinc-600">
+                      {t("comments.composer_placeholder")}
+                    </div>
+                  </div>
+
+                  {[0, 1].map((slot) => (
+                    <article key={slot} className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                      <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500">
+                        <span className="rounded-md border border-white/10 px-2 py-0.5 font-mono">{t("comments.mock_user", { index: slot + 1 })}</span>
+                        <span className="rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 font-mono text-[10px] text-violet-300">
+                          {t("comments.contributor")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-500">{t("comments.stream_placeholder")}</p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </DetailSection>
+          </main>
+
+          <aside className="space-y-4 xl:col-span-4 xl:sticky xl:top-24 xl:self-start">
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
+              <p className="mb-1 text-xs tracking-wide text-zinc-500">{t("sidebar.global_ranking")}</p>
+              <p className="font-pixel text-4xl text-primary drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">{metrics.elo}</p>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-white/10 bg-zinc-950/70 p-3 text-center">
+                  <Star className="mx-auto mb-1 h-4 w-4 text-yellow-400" />
+                  <p className="font-mono text-sm text-zinc-100">{formatCompactNumber(githubMeta.stargazersCount, preferredLocale)}</p>
+                  <p className="text-[11px] text-zinc-500">{t("sidebar.stars")}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-zinc-950/70 p-3 text-center">
+                  <GitFork className="mx-auto mb-1 h-4 w-4 text-sky-400" />
+                  <p className="font-mono text-sm text-zinc-100">{formatCompactNumber(githubMeta.forksCount, preferredLocale)}</p>
+                  <p className="text-[11px] text-zinc-500">{t("sidebar.forks")}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-500">{t("sidebar.hype")}</span>
+                  <span className="font-mono text-orange-400">{metrics.hype.toFixed(1)}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full bg-gradient-to-r from-yellow-400 to-red-500"
+                    style={{ width: `${Math.max(0, Math.min(metrics.hype, 100))}%` }}
+                  />
+                </div>
+                <HypeActions specimenId={specimen.specimenId} initialScore={metrics.hype} />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-white/10 bg-zinc-950/70 p-3 text-center">
+                  <p className="font-mono text-sm text-zinc-100">{metrics.votes.toLocaleString()}</p>
+                  <p className="text-[11px] text-zinc-500">{t("sidebar.votes")}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-zinc-950/70 p-3 text-center">
+                  <p className="font-mono text-sm text-zinc-100">{typeof metrics.comments === "number" ? metrics.comments.toLocaleString() : "-"}</p>
+                  <p className="text-[11px] text-zinc-500">{t("sidebar.comments")}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
+              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.repository_meta")}</p>
+              <div className="space-y-3">
+                <InfoRow label={t("repo_meta.visibility")} value={githubMeta.visibility} />
+                <InfoRow label={t("repo_meta.default_branch")} value={githubMeta.defaultBranch} />
+                <InfoRow label={t("repo_meta.license")} value={githubMeta.license?.name || "-"} />
+                <InfoRow label={t("repo_meta.homepage")} value={githubMeta.homepage ? t("repo_meta.homepage_available") : "-"} />
+                <InfoRow label={t("repo_meta.open_issues")} value={githubMeta.openIssuesCount.toLocaleString()} />
+                <InfoRow label={t("repo_meta.metadata_synced")} value={formatDateLabel(githubMeta.metadataSyncedAt, preferredLocale)} />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
+              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.timeline")}</p>
+              <div className="space-y-3">
+                <InfoRow label={t("timeline.created")} value={formatDateLabel(githubMeta.createdAt, preferredLocale)} />
+                <InfoRow label={t("timeline.updated")} value={formatDateLabel(githubMeta.updatedAt, preferredLocale)} />
+                <InfoRow label={t("timeline.pushed")} value={formatDateLabel(githubMeta.pushedAt, preferredLocale)} />
+                <InfoRow label={t("timeline.last_activity")} value={formatRelativeLabel(githubMeta.pushedAt, preferredLocale)} />
+              </div>
+              <div className="mt-4 rounded-lg border border-white/10 bg-zinc-950/80 p-3 text-[11px] text-zinc-500">
+                <p className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {t("timeline.relative_time_note")}
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
+              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.repo_identity")}</p>
+              <div className="space-y-3">
+                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+                  <p className="mb-1 inline-flex items-center gap-1 text-[11px] text-primary">
+                    <UserRound className="h-3.5 w-3.5" /> {t("identity.owner")}
+                  </p>
+                  <p className="font-mono text-sm text-zinc-100">{repoIdentity?.owner?.githubLogin || "-"}</p>
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-zinc-950/80 p-3">
+                  <p className="mb-2 inline-flex items-center gap-1 text-[11px] text-zinc-400">
+                    <UsersRound className="h-3.5 w-3.5" /> {t("identity.contributors", { count: contributors.length })}
+                  </p>
+                  {contributors.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {contributors.slice(0, 8).map((contributor) => (
+                        <span key={contributor.githubUserId} className="rounded-md border border-white/10 px-2 py-1 font-mono text-[11px] text-zinc-300">
+                          {contributor.githubLogin}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-zinc-500">{t("identity.no_contributors")}</p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
+              <p className="mb-3 text-sm font-semibold text-zinc-100">{t("sidebar.actions")}</p>
+              <div className="space-y-3">
+                <Button asChild className="h-11 w-full border border-white/20 bg-white text-black hover:bg-zinc-200">
+                  <a href={githubMeta.repoHtmlUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    {t("actions.open_github")}
+                  </a>
+                </Button>
+
+                {githubMeta.homepage && (
+                  <Button asChild variant="outline" className="h-10 w-full border-white/20 bg-zinc-950/80 hover:bg-zinc-800">
+                    <a href={githubMeta.homepage} target="_blank" rel="noopener noreferrer">
+                      <Globe2 className="mr-2 h-4 w-4" />
+                      {t("actions.open_homepage")}
+                    </a>
+                  </Button>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <WatchlistToggleButton
+                    specimenId={specimen.specimenId}
+                    source="DETAIL"
+                    className="h-10 border-white/20 bg-zinc-950/80 text-zinc-200 hover:bg-zinc-800"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled
+                    className="h-10 border-white/20 bg-zinc-950/80 text-zinc-500 hover:bg-zinc-950 hover:text-zinc-500"
+                  >
+                    <ShieldAlert className="mr-2 h-4 w-4" />
+                    {t("actions.report_soon")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-dashed border-white/10 bg-zinc-950/80 p-3 text-[11px] text-zinc-500">
+                <p className="inline-flex items-center gap-1">
+                  <Code2 className="h-3.5 w-3.5" />
+                  {t("contract.official_commentary")}
+                </p>
+                <p className="mt-1 inline-flex items-center gap-1">
+                  <GitPullRequest className="h-3.5 w-3.5" />
+                  {t("contract.comments_placeholder")}
+                </p>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}

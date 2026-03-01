@@ -28,12 +28,466 @@
     "feedback": {
       "win": "英雄所见略同。",
       "loss": "真理掌握在少数人手中。"
+    },
+    "layout": {
+      "toast": {
+        "arena_unavailable": "竞技场暂不可用",
+        "diagnosis_submitted": "诊断已提交",
+        "balance": "余额：{amount} Bug",
+        "diagnosis_failed": "诊断提交失败"
+      },
+      "loading_duel": "正在加载对局...",
+      "arena_offline": "竞技场离线",
+      "retry": "重试",
+      "round": "第 {round} 轮",
+      "doctors_online": "在线诊断师 {count} 人",
+      "action": {
+        "diagnose_a": "确诊 A",
+        "both_bad": "两边都不行",
+        "diagnose_b": "确诊 B"
+      }
     }
   },
   "auth": {
     "login_title": "病友登记处",
     "login_subtitle": "出示您的医保卡（GitHub/Google）以进入病房。",
     "github_login": "GitHub 入院",
-    "google_login": "Google 入院"
+    "google_login": "Google 入院",
+    "modal": {
+      "title": "病友登记",
+      "subtitle": "请选择身份提供方完成入院。",
+      "close": "关闭弹窗",
+      "github_login": "使用 GitHub 登录",
+      "google_login": "使用 Google 登录",
+      "development_mode": "开发模式",
+      "mock_placeholder": "输入模拟用户名",
+      "footer": "WTF-Repo v1.0 • 访问控制"
+    },
+    "page": {
+      "title": "病友登记",
+      "subtitle": "扫描身份后进入病房。",
+      "error_prefix": "错误",
+      "github_login": "使用 GitHub 登录",
+      "google_login": "使用 Google 登录",
+      "development_only": "仅开发环境",
+      "mock_placeholder": "模拟用户名",
+      "footer_line1": "点击入院即表示你同意放弃部分理智权利。",
+      "footer_line2": "WTF-Repo v1.0.0"
+    },
+    "gate": {
+      "verifying": "正在验证身份...",
+      "required_title": "需要身份验证",
+      "required_body": "进入该区域前需要先完成身份核验。"
+    }
+  },
+  "narrator": {
+    "events": {
+      "arena.vote.left.hover": [
+        "左侧样本正在等待确诊。",
+        "A 号病历指数正在上升，你确定要接手吗？",
+        "这个仓库看起来像在写行为艺术。"
+      ],
+      "arena.vote.left.click": [
+        "已记录：A 号确诊。",
+        "左侧病历已盖章，送往下一轮观察。",
+        "A 号样本通过，继续观察。"
+      ],
+      "arena.vote.right.hover": [
+        "右侧样本正在释放高浓度离谱气场。",
+        "B 号病历在用奇怪方式吸引你。",
+        "你停在了 B 号选择上，挺勇敢。"
+      ],
+      "arena.vote.right.click": [
+        "已记录：B 号确诊。",
+        "右侧病历已备案，伦理委员会正在赶来。",
+        "B 号样本顺利晋级，合理又离谱。"
+      ],
+      "arena.vote.both_bad.hover": [
+        "两边都不稳定，这个判断很专业。",
+        "无解局，但这个按钮至少很诚实。",
+        "检测到双否倾向，建议保持冷静。"
+      ],
+      "arena.vote.both_bad.click": [
+        "双否决定已记录，Elo 惩罚即将执行。",
+        "两份病历均被标记为临床荒诞。",
+        "本轮无人幸存，符合预期。"
+      ],
+      "arena.card.left.inspect.hover": [
+        "要展开 A 号病历吗？可能会造成心理伤害。",
+        "左侧档案正在升温，略微可疑。",
+        "A 号样本详细检查模式已就绪。"
+      ],
+      "arena.card.left.inspect.click": [
+        "正在打开 A 号抽屉。",
+        "左侧病历已解锁，可进入深度诊断。",
+        "A 号详细数据加载中。"
+      ],
+      "arena.card.right.inspect.hover": [
+        "右侧档案可能含有禁忌技术。",
+        "B 号样本正在等你点开检查。",
+        "右侧抽屉已准备好，就等你确认。"
+      ],
+      "arena.card.right.inspect.click": [
+        "正在打开 B 号抽屉。",
+        "右侧病历已解锁，可进入深度诊断。",
+        "B 号详细数据加载中。"
+      ],
+      "hover_vote": [
+        "你确定？这项目可是用 PHP 写的。",
+        "很大胆的选择，医生。",
+        "这种代码我看一眼都要洗眼睛。",
+        "你真的读过 README 了吗？",
+        "高风险，零回报的操作。"
+      ],
+      "click_vote": [
+        "已记录你的误诊。",
+        "正在准备电击治疗...",
+        "病人情况：危急。",
+        "离谱，但合理。"
+      ],
+      "idle": [
+        "有人吗？",
+        "别发呆了，还有很多病人等着确诊。",
+        "我在看着你呢。"
+      ],
+      "narrator.arena.vote.win": [
+        "你这票压得很准，院长点头了。",
+        "胜利诊断已记录，继续保持节奏。",
+        "这次判断很稳，病房里有人在鼓掌。"
+      ],
+      "narrator.arena.vote.lose": [
+        "这次判断偏了，下轮还能翻盘。",
+        "误诊已备案，别灰心。",
+        "输一轮不致命，继续看盘。"
+      ],
+      "narrator.arena.vote.draw": [
+        "平局判定成立，双方都很抽象。",
+        "这轮没有赢家，但你很诚实。",
+        "双方离谱程度接近，平局处理。"
+      ],
+      "narrator.achievement.unlocked": [
+        "新成就解锁：{achievementName}",
+        "勋章到账，继续冲榜。",
+        "你刚刚触发了一枚新成就。"
+      ],
+      "narrator.bet.settled.win": [
+        "下注结算为胜，收益已入账。",
+        "这手下注很漂亮。",
+        "你这轮押对了，继续观察市场。"
+      ],
+      "narrator.bet.settled.lose": [
+        "下注结算为负，下次会更稳。",
+        "这轮赔付已确认，先别上头。",
+        "市场反噬了一口，冷静再来。"
+      ]
+    }
+  },
+  "specimen": {
+    "archive": {
+      "title": "病历库",
+      "search_placeholder": "搜索离谱仓库...",
+      "sort": {
+        "hot": "最热",
+        "new": "最新",
+        "insane": "最疯"
+      },
+      "empty": "当前条件下未发现样本。"
+    },
+    "drawer": {
+      "open": "查看详情",
+      "full": "查看完整病历",
+      "detail_locked": "先完成本轮投票，再解锁完整病历。",
+      "sr_title": "样本预览抽屉",
+      "close": "关闭面板",
+      "preview_mode": "预览模式",
+      "loading": "正在连接主机...",
+      "elo_rating": "Elo 评分",
+      "stars": "星标",
+      "diagnostics": "诊断标签",
+      "system_output": "系统输出",
+      "no_output": "暂无输出内容。",
+      "community_roast": "社区吐槽",
+      "open_github": "在 GitHub 打开",
+      "view_full_report": "查看完整诊断",
+      "vote_to_unlock": "投票后解锁报告",
+      "warning_target_destination": "目标地址",
+      "warning_confirm": "继续前往 GitHub",
+      "warning_cancel": "取消",
+      "warning_close": "关闭弹窗"
+    },
+    "detail": {
+      "diagnosis": "官方诊断",
+      "hype_sent": "已提交情绪反馈。",
+      "github_open": "在 GitHub 中查看",
+      "github_warning": {
+        "title": "⚠️ 警告：高辐射区域",
+        "body": "您即将离开病房进入 GitHub，请确认已穿戴防护服。"
+      },
+      "meta": {
+        "title": "{repo} | 诊断报告",
+        "description_fallback": "WTF-Repo 仓库详细诊断信息。",
+        "open_graph_title": "{repo} - WTF-Repo 诊断",
+        "not_found_title": "未找到样本"
+      },
+      "defaults": {
+        "no_diagnosis": "暂无官方诊断文案。",
+        "no_arena_reason": "暂无竞技场对撞说明。"
+      },
+      "nav": {
+        "back_to_archive": "返回病历库",
+        "dossier_online": "样本档案在线"
+      },
+      "hero": {
+        "badge": "样本",
+        "no_topics": "暂无主题标签"
+      },
+      "stats": {
+        "primary_language": "主要语言",
+        "stars": "星标",
+        "last_push": "最后推送",
+        "unknown_language": "未知"
+      },
+      "section": {
+        "market_pulse": "市场脉冲",
+        "official_commentary": "官方点评",
+        "readme_excerpts": "Readme 摘录",
+        "code_highlights": "代码高光",
+        "comments_preview": "评论区（M05 预览）"
+      },
+      "market": {
+        "trend_intraday": "Elo 走势（当日）",
+        "max": "最高：{value}",
+        "min": "最低：{value}",
+        "fallback_note": "优先使用 `eloHistory`。历史接口未就绪时会使用生成曲线保持布局稳定。"
+      },
+      "commentary": {
+        "diagnosis_label": "诊断结论",
+        "arena_reason_label": "入场理由"
+      },
+      "readme": {
+        "excerpt_types": {
+          "funny": "搞笑片段",
+          "summary": "摘要",
+          "highlight": "高光片段"
+        },
+        "empty": "暂未整理 Readme 摘录。"
+      },
+      "code": {
+        "empty": "暂未整理代码证据片段。"
+      },
+      "comments": {
+        "intro": "评论能力依赖后端接口。这个区块作为 M05 预留，包含置顶吐槽、身份徽章和线程化列表布局。",
+        "top_roast_label": "置顶吐槽（缓存）",
+        "top_roast_pending": "暂不可用。M05 将接入 `specimen_top_roast_cache`。",
+        "identity_badges_label": "身份徽章已就绪",
+        "identity_badges_desc": "Owner 与 contributor 身份已可用于未来评论徽章渲染。",
+        "owner": "Owner",
+        "contributor": "Contributor",
+        "composer_label": "评论输入区（预览）",
+        "composer_placeholder": "[M05] 评论输入、频控提示与身份徽章预览。",
+        "mock_user": "用户_{index}",
+        "stream_placeholder": "M05 评论流占位卡片。"
+      },
+      "sidebar": {
+        "global_ranking": "全局排行（Elo）",
+        "stars": "星标",
+        "forks": "分叉",
+        "hype": "热度",
+        "votes": "投票",
+        "comments": "评论",
+        "repository_meta": "仓库元信息",
+        "timeline": "时间线",
+        "repo_identity": "仓库身份",
+        "actions": "操作"
+      },
+      "repo_meta": {
+        "visibility": "可见性",
+        "default_branch": "默认分支",
+        "license": "许可证",
+        "homepage": "主页",
+        "homepage_available": "可用",
+        "open_issues": "开放 issue",
+        "metadata_synced": "元信息同步时间"
+      },
+      "timeline": {
+        "created": "创建时间",
+        "updated": "更新时间",
+        "pushed": "推送时间",
+        "last_activity": "最近活跃",
+        "relative_time_note": "相对时间使用本地化格式显示。"
+      },
+      "identity": {
+        "owner": "Owner",
+        "contributors": "Contributors（{count}）",
+        "no_contributors": "暂无同步的贡献者身份。"
+      },
+      "actions": {
+        "open_github": "在 GitHub 打开",
+        "open_homepage": "打开主页",
+        "report_soon": "举报即将开放"
+      },
+      "contract": {
+        "official_commentary": "已支持 `officialCommentary + excerpts + codeHighlights` 契约路径。",
+        "comments_placeholder": "M05 评论能力可以无布局改动接入该区域。"
+      }
+    },
+    "watchlist": {
+      "add": "添加自选",
+      "added": "已在自选",
+      "remove": "移出自选",
+      "title": "我的自选池",
+      "empty": "自选池空空如也，先去抓几只病友吧。",
+      "toast": {
+        "added": "已加入自选池。",
+        "removed": "已从自选池移除。",
+        "failed": "更新自选池失败。"
+      }
+    },
+    "hype": {
+      "title": "情绪诊断",
+      "auth_required_title": "需要身份验证",
+      "auth_required_description": "登录后才能提交情绪诊断数据。",
+      "dimensions": {
+        "funny": "离谱",
+        "insane": "疯狂",
+        "genius": "天才"
+      },
+      "overlay_gain": "+热度"
+    }
+  },
+  "header": {
+    "nav": {
+      "arena": "竞技场",
+      "archive": "病历库"
+    },
+    "god_eye": {
+      "label": "上帝之眼",
+      "mode": {
+        "full": "完整",
+        "lite": "精简",
+        "off": "关闭"
+      }
+    },
+    "wallet": {
+      "currency": "Bug"
+    },
+    "menu": {
+      "patient_id": "患者编号",
+      "my_space": "我的空间",
+      "my_achievements": "我的成就",
+      "logout": "出院",
+      "login": "入院"
+    }
+  },
+  "archive": {
+    "page": {
+      "meta": {
+        "title": "病历库 | 医疗档案",
+        "description": "浏览 WTF-Repo 中已入院仓库，按离谱度、热度与新鲜度排序。"
+      },
+      "badge": "病院档案",
+      "title_prefix": "医疗",
+      "title_highlight": "档案",
+      "description": "浏览野外发现的离谱、聪明又混沌的仓库。诊断仅供参考。"
+    },
+    "list": {
+      "toast": {
+        "communication_error": "通信异常",
+        "mainframe_unreachable": "病院主机暂时不可达。"
+      },
+      "search_placeholder": "按仓库名搜索...",
+      "sort": {
+        "hot": "最热",
+        "new": "最新",
+        "insane": "最疯"
+      },
+      "spotlight": {
+        "by_elo": "Elo 榜首",
+        "by_hype": "Hype 热点",
+        "momentum_24h": "24 小时动量",
+        "waiting": "等待数据中"
+      },
+      "empty": "当前区域没有找到样本。",
+      "load_more": "加载更多样本"
+    },
+    "card": {
+      "log_label": "档案条目 {id}.log",
+      "pending": "系统诊断尚未完成...",
+      "stars": "星标",
+      "hype": "热度"
+    }
+  },
+  "me": {
+    "page": {
+      "meta": {
+        "title": "我的空间",
+        "description": "个人中心，查看资料、奖励和成就。"
+      },
+      "fallback_name": "病友",
+      "personal_center": "个人中心",
+      "bug_balance": "Bug 余额",
+      "achievement_block": {
+        "badge": "凭证",
+        "title": "我的成就",
+        "description": "查看已解锁徽章、完成度和奖励记录。",
+        "cta": "打开看板"
+      },
+      "profile_block": {
+        "badge": "身份",
+        "title": "账户资料",
+        "description": "昵称和偏好管理将在这里逐步扩展。",
+        "footnote": "账户控制功能采用迭代交付，避免阻塞核心玩法。"
+      }
+    }
+  },
+  "achievements": {
+    "page": {
+      "meta": {
+        "title": "我的成就",
+        "description": "追踪成就解锁与奖励进度。"
+      },
+      "back": "返回我的空间",
+      "badge": "个人凭证",
+      "title": "我的成就",
+      "description": "看板由后端定义驱动，新增成就无需改前端代码。"
+    },
+    "detail": {
+      "meta": {
+        "fallback_title": "成就"
+      },
+      "back": "返回我的成就",
+      "tier": "等级",
+      "reward": "奖励",
+      "unlock_ratio": "解锁比例",
+      "status": "状态：{status}",
+      "status_unlocked": "已解锁",
+      "status_locked": "未解锁",
+      "unlocked_at": "解锁时间：{value}",
+      "total_unlocked_users": "解锁总人数：{count}"
+    },
+    "overview": {
+      "summary": {
+        "total_achievements": "成就总数",
+        "unlocked": "已解锁",
+        "completion": "完成度",
+        "reward_bug_earned": "已获 Bug 奖励"
+      },
+      "filter": {
+        "all": "全部",
+        "unlocked": "已解锁",
+        "locked": "未解锁"
+      },
+      "config_note": "配置驱动列表：前端不硬编码成就编号。",
+      "loading": "正在加载成就看板...",
+      "empty": "当前筛选条件下没有成就。",
+      "status": {
+        "unlocked": "已解锁",
+        "locked": "未解锁"
+      }
+    }
+  },
+  "ticker": {
+    "label": "快讯",
+    "warming_up": "快讯频道预热中..."
   }
 }

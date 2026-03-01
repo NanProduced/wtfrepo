@@ -28,12 +28,466 @@
     "feedback": {
       "win": "Great minds think alike.",
       "loss": "You are the 1%."
+    },
+    "layout": {
+      "toast": {
+        "arena_unavailable": "Arena unavailable",
+        "diagnosis_submitted": "Diagnosis submitted",
+        "balance": "Balance: {amount} Bug",
+        "diagnosis_failed": "Diagnosis failed"
+      },
+      "loading_duel": "Loading duel...",
+      "arena_offline": "Arena offline",
+      "retry": "Retry",
+      "round": "Round #{round}",
+      "doctors_online": "{count} doctors online",
+      "action": {
+        "diagnose_a": "Diagnose A",
+        "both_bad": "Both are bad",
+        "diagnose_b": "Diagnose B"
+      }
     }
   },
   "auth": {
     "login_title": "Patient Check-in",
     "login_subtitle": "Show your ID card to enter the asylum.",
     "github_login": "Login with GitHub",
-    "google_login": "Login with Google"
+    "google_login": "Login with Google",
+    "modal": {
+      "title": "Patient admission",
+      "subtitle": "Select your identity provider to check in.",
+      "close": "Close dialog",
+      "github_login": "Sign in with GitHub",
+      "google_login": "Sign in with Google",
+      "development_mode": "Development mode",
+      "mock_placeholder": "Enter mock username",
+      "footer": "WTF-Repo v1.0 • Access control"
+    },
+    "page": {
+      "title": "Patient admission",
+      "subtitle": "Scan ID to enter the asylum.",
+      "error_prefix": "Error",
+      "github_login": "Sign in with GitHub",
+      "google_login": "Sign in with Google",
+      "development_only": "Development only",
+      "mock_placeholder": "Mock username",
+      "footer_line1": "By checking in, you agree to waive all sanity rights.",
+      "footer_line2": "WTF-Repo v1.0.0"
+    },
+    "gate": {
+      "verifying": "Verifying identity...",
+      "required_title": "Identity verification required",
+      "required_body": "You must scan your ID before accessing this sector."
+    }
+  },
+  "narrator": {
+    "events": {
+      "arena.vote.left.hover": [
+        "Left specimen requests immediate diagnosis.",
+        "A-side vitals spike. Bold move if you commit.",
+        "This patient looks unstable in a very artistic way."
+      ],
+      "arena.vote.left.click": [
+        "Diagnosis logged: LEFT wins this round.",
+        "Case closed. Left chart stamped and archived.",
+        "Left specimen promoted to next observation cycle."
+      ],
+      "arena.vote.right.hover": [
+        "Right specimen is radiating pure chaos.",
+        "B-side chart looks suspiciously entertaining.",
+        "You are hovering over a potential masterpiece."
+      ],
+      "arena.vote.right.click": [
+        "Diagnosis logged: RIGHT wins this round.",
+        "Right chart approved. Someone call the ethics board.",
+        "Right specimen advances with questionable honor."
+      ],
+      "arena.vote.both_bad.hover": [
+        "Classic differential failure. Both are alarming.",
+        "Two bad options. One honest button.",
+        "Mutual chaos detected. Proceed with caution."
+      ],
+      "arena.vote.both_bad.click": [
+        "Dual rejection recorded. Elo penalties incoming.",
+        "Both charts marked as clinically absurd.",
+        "No survivors this round. Beautiful."
+      ],
+      "arena.card.left.inspect.hover": [
+        "Open left chart? Prepare for emotional damage.",
+        "Left specimen file is warm and suspicious.",
+        "Inspection mode armed for specimen A."
+      ],
+      "arena.card.left.inspect.click": [
+        "Opening specimen A drawer.",
+        "Left chart unlocked for closer inspection.",
+        "Specimen A: detailed diagnostics loading."
+      ],
+      "arena.card.right.inspect.hover": [
+        "Right chart may contain forbidden techniques.",
+        "Specimen B is asking to be inspected.",
+        "Hover acknowledged. Right-side drawer is ready."
+      ],
+      "arena.card.right.inspect.click": [
+        "Opening specimen B drawer.",
+        "Right chart unlocked for closer inspection.",
+        "Specimen B: detailed diagnostics loading."
+      ],
+      "hover_vote": [
+        "Are you sure? This repo is written in PHP.",
+        "That's a bold choice, doctor.",
+        "I wouldn't touch that code with a 10ft pole.",
+        "Do you even read the README?",
+        "High risk, zero reward."
+      ],
+      "click_vote": [
+        "Mistakes were made.",
+        "Logging this incident...",
+        "Applying electric shock therapy...",
+        "Patient condition: Critical."
+      ],
+      "idle": [
+        "Hello? Anyone home?",
+        "I'm watching you.",
+        "Don't just stare at it."
+      ],
+      "narrator.arena.vote.win": [
+        "That call was sharp. The Warden approves.",
+        "Winning diagnosis logged. Keep moving.",
+        "Strong read. The ward noticed."
+      ],
+      "narrator.arena.vote.lose": [
+        "That one missed. Next round is yours.",
+        "Misdiagnosis recorded. Recover fast.",
+        "Wrong pick, still in the game."
+      ],
+      "narrator.arena.vote.draw": [
+        "Draw confirmed. Both cases are absurd.",
+        "No winner this round, honest call.",
+        "Equal chaos. Tie stands."
+      ],
+      "narrator.achievement.unlocked": [
+        "Achievement unlocked: {achievementName}",
+        "Badge earned. Keep climbing.",
+        "New achievement registered."
+      ],
+      "narrator.bet.settled.win": [
+        "Bet settled as a win. Payout delivered.",
+        "Clean hit. Nice call.",
+        "You read the market right this time."
+      ],
+      "narrator.bet.settled.lose": [
+        "Bet settled as a loss. Regroup.",
+        "That position got punished.",
+        "Market bit back. Stay calm."
+      ]
+    }
+  },
+  "specimen": {
+    "archive": {
+      "title": "Archive",
+      "search_placeholder": "Search weird repos...",
+      "sort": {
+        "hot": "Hottest",
+        "new": "Newest",
+        "insane": "Most Insane"
+      },
+      "empty": "No specimens found under these conditions."
+    },
+    "drawer": {
+      "open": "View Details",
+      "full": "Open Full Chart",
+      "detail_locked": "Finish this vote first to unlock full chart.",
+      "sr_title": "Specimen preview drawer",
+      "close": "Close panel",
+      "preview_mode": "Preview mode",
+      "loading": "Accessing mainframe...",
+      "elo_rating": "Elo rating",
+      "stars": "Stars",
+      "diagnostics": "Diagnostics",
+      "system_output": "System output",
+      "no_output": "No output captured.",
+      "community_roast": "Community roast",
+      "open_github": "Open on GitHub",
+      "view_full_report": "View full diagnostic report",
+      "vote_to_unlock": "Vote to unlock report",
+      "warning_target_destination": "Target destination",
+      "warning_confirm": "Proceed to GitHub",
+      "warning_cancel": "Cancel",
+      "warning_close": "Close dialog"
+    },
+    "detail": {
+      "diagnosis": "Official Diagnosis",
+      "hype_sent": "Hype recorded.",
+      "github_open": "Open on GitHub",
+      "github_warning": {
+        "title": "⚠️ Warning: High Radiation Zone",
+        "body": "You are leaving for GitHub. Protective gear recommended."
+      },
+      "meta": {
+        "title": "{repo} | Diagnostic report",
+        "description_fallback": "Detailed repository diagnostics in WTF-Repo.",
+        "open_graph_title": "{repo} - WTF-Repo diagnosis",
+        "not_found_title": "Specimen not found"
+      },
+      "defaults": {
+        "no_diagnosis": "No official diagnosis published yet.",
+        "no_arena_reason": "No arena collision note is available."
+      },
+      "nav": {
+        "back_to_archive": "Back to archive",
+        "dossier_online": "Specimen dossier online"
+      },
+      "hero": {
+        "badge": "Specimen",
+        "no_topics": "No topic tags yet"
+      },
+      "stats": {
+        "primary_language": "Primary language",
+        "stars": "Stars",
+        "last_push": "Last push",
+        "unknown_language": "Unknown"
+      },
+      "section": {
+        "market_pulse": "Market pulse",
+        "official_commentary": "Official commentary",
+        "readme_excerpts": "Readme excerpts",
+        "code_highlights": "Code highlights",
+        "comments_preview": "Comments (M05 preview)"
+      },
+      "market": {
+        "trend_intraday": "Elo trend (intraday)",
+        "max": "Max: {value}",
+        "min": "Min: {value}",
+        "fallback_note": "Uses `eloHistory` when available. Falls back to generated sparkline before the history API is finalized."
+      },
+      "commentary": {
+        "diagnosis_label": "Diagnosis",
+        "arena_reason_label": "Arena reason"
+      },
+      "readme": {
+        "excerpt_types": {
+          "funny": "Funny",
+          "summary": "Summary",
+          "highlight": "Highlight"
+        },
+        "empty": "No curated readme excerpt is available yet."
+      },
+      "code": {
+        "empty": "No code evidence snippet has been curated yet."
+      },
+      "comments": {
+        "intro": "Comments are pending backend APIs. This block is a placeholder for M05, including top roast, identity badges, and threaded list rendering.",
+        "top_roast_label": "Top roast (cache)",
+        "top_roast_pending": "Not available yet. Will consume `specimen_top_roast_cache` in M05.",
+        "identity_badges_label": "Identity badges ready",
+        "identity_badges_desc": "Owner and contributor identity are already available for future comment badge rendering.",
+        "owner": "Owner",
+        "contributor": "Contributor",
+        "composer_label": "Comment composer (preview)",
+        "composer_placeholder": "[M05] Comment input, rate limit hint, and identity badge preview.",
+        "mock_user": "User_{index}",
+        "stream_placeholder": "M05 comment stream placeholder card."
+      },
+      "sidebar": {
+        "global_ranking": "Global ranking (Elo)",
+        "stars": "Stars",
+        "forks": "Forks",
+        "hype": "Hype",
+        "votes": "Votes",
+        "comments": "Comments",
+        "repository_meta": "Repository meta",
+        "timeline": "Timeline",
+        "repo_identity": "Repo identity",
+        "actions": "Actions"
+      },
+      "repo_meta": {
+        "visibility": "Visibility",
+        "default_branch": "Default branch",
+        "license": "License",
+        "homepage": "Homepage",
+        "homepage_available": "Available",
+        "open_issues": "Open issues",
+        "metadata_synced": "Metadata synced"
+      },
+      "timeline": {
+        "created": "Created",
+        "updated": "Updated",
+        "pushed": "Pushed",
+        "last_activity": "Last activity",
+        "relative_time_note": "Relative time uses locale-aware formatting."
+      },
+      "identity": {
+        "owner": "Owner",
+        "contributors": "Contributors ({count})",
+        "no_contributors": "No contributor identities synced yet."
+      },
+      "actions": {
+        "open_github": "Open on GitHub",
+        "open_homepage": "Open homepage",
+        "report_soon": "Report soon"
+      },
+      "contract": {
+        "official_commentary": "Supports `officialCommentary + excerpts + codeHighlights` contract path.",
+        "comments_placeholder": "M05 comments integrate here without layout changes."
+      }
+    },
+    "watchlist": {
+      "add": "Add to Watchlist",
+      "added": "In Watchlist",
+      "remove": "Remove from Watchlist",
+      "title": "My Watchlist",
+      "empty": "Watchlist is empty. Go find some patients.",
+      "toast": {
+        "added": "Added to watchlist.",
+        "removed": "Removed from watchlist.",
+        "failed": "Watchlist update failed."
+      }
+    },
+    "hype": {
+      "title": "Emotional diagnostic",
+      "auth_required_title": "Identity verification required",
+      "auth_required_description": "Sign in to submit emotional diagnostic data.",
+      "dimensions": {
+        "funny": "Absurd",
+        "insane": "Insane",
+        "genius": "Genius"
+      },
+      "overlay_gain": "+hype"
+    }
+  },
+  "header": {
+    "nav": {
+      "arena": "Arena",
+      "archive": "Archive"
+    },
+    "god_eye": {
+      "label": "God eye",
+      "mode": {
+        "full": "Full",
+        "lite": "Lite",
+        "off": "Off"
+      }
+    },
+    "wallet": {
+      "currency": "Bug"
+    },
+    "menu": {
+      "patient_id": "Patient ID",
+      "my_space": "My space",
+      "my_achievements": "My achievements",
+      "logout": "Discharge",
+      "login": "Check in"
+    }
+  },
+  "archive": {
+    "page": {
+      "meta": {
+        "title": "Archive | Medical records",
+        "description": "Browse repositories admitted to WTF-Repo. Sorted by insanity, hype, and freshness."
+      },
+      "badge": "Asylum archives",
+      "title_prefix": "Medical",
+      "title_highlight": "records",
+      "description": "Browse absurd, ingenious, and chaotic repositories from the wild. Diagnostics are subjective."
+    },
+    "list": {
+      "toast": {
+        "communication_error": "Communication error",
+        "mainframe_unreachable": "The asylum mainframe is unreachable."
+      },
+      "search_placeholder": "Search by repository name...",
+      "sort": {
+        "hot": "Hot",
+        "new": "New",
+        "insane": "Insane"
+      },
+      "spotlight": {
+        "by_elo": "Leaderboard by Elo",
+        "by_hype": "Hot by hype",
+        "momentum_24h": "24h momentum",
+        "waiting": "Waiting for data"
+      },
+      "empty": "No specimens found in this sector.",
+      "load_more": "Load more samples"
+    },
+    "card": {
+      "log_label": "Archive item {id}.log",
+      "pending": "System diagnostic pending...",
+      "stars": "Stars",
+      "hype": "Hype"
+    }
+  },
+  "me": {
+    "page": {
+      "meta": {
+        "title": "My space",
+        "description": "Personal hub for profile, rewards, and achievements."
+      },
+      "fallback_name": "Patient",
+      "personal_center": "Personal center",
+      "bug_balance": "Bug balance",
+      "achievement_block": {
+        "badge": "Credential",
+        "title": "My achievements",
+        "description": "View unlocked badges, completion, and reward records.",
+        "cta": "Open board"
+      },
+      "profile_block": {
+        "badge": "Identity",
+        "title": "Account profile",
+        "description": "Nickname and preference management will expand here next.",
+        "footnote": "Account controls remain in iterative delivery to avoid blocking core gameplay."
+      }
+    }
+  },
+  "achievements": {
+    "page": {
+      "meta": {
+        "title": "My achievements",
+        "description": "Track unlocked achievements and reward progress."
+      },
+      "back": "Back to my space",
+      "badge": "Personal credentials",
+      "title": "My achievements",
+      "description": "Data-driven board from backend definitions. New achievements can be added without frontend code changes."
+    },
+    "detail": {
+      "meta": {
+        "fallback_title": "Achievement"
+      },
+      "back": "Back to my achievements",
+      "tier": "Tier",
+      "reward": "Reward",
+      "unlock_ratio": "Unlock ratio",
+      "status": "Status: {status}",
+      "status_unlocked": "Unlocked",
+      "status_locked": "Locked",
+      "unlocked_at": "Unlocked at: {value}",
+      "total_unlocked_users": "Total unlocked users: {count}"
+    },
+    "overview": {
+      "summary": {
+        "total_achievements": "Total achievements",
+        "unlocked": "Unlocked",
+        "completion": "Completion",
+        "reward_bug_earned": "Reward bug earned"
+      },
+      "filter": {
+        "all": "All",
+        "unlocked": "Unlocked",
+        "locked": "Locked"
+      },
+      "config_note": "Config-driven list: frontend does not hardcode achievement codes.",
+      "loading": "Loading achievement board...",
+      "empty": "No achievements found for current filter.",
+      "status": {
+        "unlocked": "Unlocked",
+        "locked": "Locked"
+      }
+    }
+  },
+  "ticker": {
+    "label": "Live",
+    "warming_up": "Ticker is warming up..."
   }
 }
