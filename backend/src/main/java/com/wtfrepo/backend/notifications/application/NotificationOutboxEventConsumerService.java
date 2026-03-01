@@ -40,6 +40,11 @@ public class NotificationOutboxEventConsumerService {
   private static final String COMMENT_ANCHOR_PREFIX = "#comment-";
   private static final String DEFAULT_SPECIMEN_TITLE = "某标本";
   private static final String DEFAULT_ACTOR_NICKNAME = "有人";
+  private static final String DEFAULT_ACHIEVEMENT_NAME = "隐藏成就";
+  private static final String ACHIEVEMENT_TITLE = "你解锁了新成就";
+  private static final String ACHIEVEMENT_DEDUPE_PREFIX = "achievement_";
+  private static final String PROFILE_ACHIEVEMENTS_PREFIX = "/profile/achievements#";
+  private static final String PROFILE_FALLBACK_URL = "/profile";
   private static final String AGG_KEY_PREFIX = "notify:agg:";
   private static final String AGG_KEY_SUFFIX = ":RESONATED";
 
@@ -238,6 +243,42 @@ public class NotificationOutboxEventConsumerService {
     }
   }
 
+  @Transactional
+  public void onAchievementUnlocked(
+      String eventId,
+      String userId,
+      String achievementCode,
+      String displayName,
+      Integer rewardBug,
+      Instant occurredAt) {
+    if (!StringUtils.hasText(userId) || !StringUtils.hasText(achievementCode)) {
+      log.warn("notify_achievement_unlocked_skip eventId={} reason=missing_fields", eventId);
+      return;
+    }
+
+    String receiverUserId = userId.trim();
+    String normalizedAchievementCode = achievementCode.trim();
+    String dedupeKey = ACHIEVEMENT_DEDUPE_PREFIX + normalizedAchievementCode;
+    if (existsByDedupe(receiverUserId, NotificationType.ACHIEVEMENT_UNLOCKED, dedupeKey)) {
+      return;
+    }
+
+    String body = buildAchievementUnlockedBody(displayName, rewardBug);
+    UserNotificationJpaEntity entity =
+        UserNotificationJpaEntity.create(
+            receiverUserId,
+            NotificationType.ACHIEVEMENT_UNLOCKED,
+            dedupeKey,
+            ACHIEVEMENT_TITLE,
+            body,
+            1,
+            null,
+            null,
+            PROFILE_ACHIEVEMENTS_PREFIX + normalizedAchievementCode,
+            PROFILE_FALLBACK_URL);
+    persistNotification(entity, receiverUserId);
+  }
+
   private boolean tryAggregateResonance(String receiverUserId, String aggregationKey) {
     String cached = readCacheValue(aggregationKey);
     if (!StringUtils.hasText(cached)) {
@@ -333,6 +374,16 @@ public class NotificationOutboxEventConsumerService {
 
   private String buildResonanceBodyAggregate(int aggregateCount) {
     return "又有 " + aggregateCount + " 位病友复议了你的处方";
+  }
+
+  private String buildAchievementUnlockedBody(String displayName, Integer rewardBug) {
+    String achievementName =
+        StringUtils.hasText(displayName) ? displayName.trim() : DEFAULT_ACHIEVEMENT_NAME;
+    int normalizedRewardBug = rewardBug == null ? 0 : rewardBug;
+    if (normalizedRewardBug > 0) {
+      return "已解锁『" + achievementName + "』，奖励 +" + normalizedRewardBug + " BUG";
+    }
+    return "已解锁『" + achievementName + "』";
   }
 
   private String buildTargetUrl(String specimenId, String commentId) {

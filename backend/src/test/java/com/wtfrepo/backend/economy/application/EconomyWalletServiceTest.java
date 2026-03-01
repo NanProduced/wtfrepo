@@ -151,6 +151,39 @@ class EconomyWalletServiceTest {
   }
 
   @Test
+  void creditBug_shouldUseAchievementLedgerType() {
+    EconomyWalletJpaEntity wallet = EconomyWalletJpaEntity.create("usr_ach_1", 1000L);
+    when(economyPolicyPort.currentPolicySnapshot())
+        .thenReturn(new EconomyPolicySnapshot(500, 100, 2000, "policy-v1", "property"));
+    when(ledgerRepository.findByIdempotencyKey("achievement_ACH_TICKER_SCALPER_usr_ach_1"))
+        .thenReturn(Optional.empty(), Optional.empty());
+    when(walletRepository.findByUserIdForUpdate("usr_ach_1")).thenReturn(Optional.of(wallet));
+    when(walletRepository.save(any(EconomyWalletJpaEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(ledgerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    EconomyWalletService.LedgerWriteResult result =
+        walletService.creditBug(
+            "usr_ach_1",
+            120,
+            "ACHIEVEMENT",
+            "ACH_TICKER_SCALPER",
+            "ACHIEVEMENT",
+            "achievement_ACH_TICKER_SCALPER_usr_ach_1");
+
+    assertThat(result.balanceAfter()).isEqualTo(1120L);
+    assertThat(result.ledgerId()).isNotBlank();
+    verify(ledgerRepository)
+        .save(
+            argThat(
+                (EconomyLedgerJpaEntity ledger) ->
+                    ledger.getEntryType() == EconomyLedgerType.ACHIEVEMENT
+                        && ledger.getDelta() == 120L
+                        && ledger.getRefType().equals("ACHIEVEMENT")
+                        && ledger.getRefId().equals("ACH_TICKER_SCALPER")));
+  }
+
+  @Test
   void claimDaily_shouldAppendDailyClaimedAndBalanceChangedEvents() {
     String userId = "usr_daily_1";
     LocalDate today = LocalDate.now(ZoneOffset.UTC);

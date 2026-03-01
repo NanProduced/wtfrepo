@@ -31,16 +31,19 @@ public class SpecimenWatchlistService {
   private final SpecimenArenaMetricsJpaRepository specimenArenaMetricsJpaRepository;
   private final UserWatchlistItemJpaRepository userWatchlistItemJpaRepository;
   private final SpecimenContractProperties specimenContractProperties;
+  private final SpecimenOutboxEventPublisher specimenOutboxEventPublisher;
 
   public SpecimenWatchlistService(
       SpecimenJpaRepository specimenJpaRepository,
       SpecimenArenaMetricsJpaRepository specimenArenaMetricsJpaRepository,
       UserWatchlistItemJpaRepository userWatchlistItemJpaRepository,
-      SpecimenContractProperties specimenContractProperties) {
+      SpecimenContractProperties specimenContractProperties,
+      SpecimenOutboxEventPublisher specimenOutboxEventPublisher) {
     this.specimenJpaRepository = specimenJpaRepository;
     this.specimenArenaMetricsJpaRepository = specimenArenaMetricsJpaRepository;
     this.userWatchlistItemJpaRepository = userWatchlistItemJpaRepository;
     this.specimenContractProperties = specimenContractProperties;
+    this.specimenOutboxEventPublisher = specimenOutboxEventPublisher;
   }
 
 
@@ -129,6 +132,8 @@ public class SpecimenWatchlistService {
 
     try {
       userWatchlistItemJpaRepository.save(entity);
+      specimenOutboxEventPublisher.publishWatchlistAdded(
+          userId, specimenId, entity.getItemId(), entity.getSource(), entity.getAddedAt());
       return new AddWatchlistResult(true, entity.getItemId());
     } catch (DataIntegrityViolationException ex) {
       return userWatchlistItemJpaRepository.findByUserId(userId).stream()

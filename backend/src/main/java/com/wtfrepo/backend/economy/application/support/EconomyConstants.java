@@ -28,6 +28,8 @@ public final class EconomyConstants {
   public static final class RefType {
 
     public static final String GAME = "GAME";
+    public static final String ADMIN = "ADMIN";
+    public static final String ACHIEVEMENT = "ACHIEVEMENT";
 
     private RefType() {}
   }

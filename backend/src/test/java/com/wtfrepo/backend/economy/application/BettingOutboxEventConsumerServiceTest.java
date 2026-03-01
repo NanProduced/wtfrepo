@@ -20,11 +20,15 @@ class BettingOutboxEventConsumerServiceTest {
   @Mock
   private BettingService bettingService;
 
+  @Mock
+  private EconomyWalletService economyWalletService;
+
   private BettingOutboxEventConsumerService eventConsumerService;
 
   @BeforeEach
   void setUp() {
-    eventConsumerService = new BettingOutboxEventConsumerService(bettingService);
+    eventConsumerService =
+        new BettingOutboxEventConsumerService(bettingService, economyWalletService);
   }
 
   @Test
@@ -94,5 +98,42 @@ class BettingOutboxEventConsumerServiceTest {
         Instant.parse("2026-02-20T00:20:00Z"));
 
     verifyNoInteractions(bettingService);
+  }
+
+  @Test
+  void onAchievementUnlocked_shouldCreditWalletWhenRewardPositive() {
+    when(
+            economyWalletService.creditBug(
+                "u_ach_1",
+                120,
+                "ACHIEVEMENT",
+                "ACH_TICKER_SCALPER",
+                "ACHIEVEMENT",
+                "achievement_ACH_TICKER_SCALPER_u_ach_1"))
+        .thenReturn(new EconomyWalletService.LedgerWriteResult("ledger_1", 1820L));
+
+    eventConsumerService.onAchievementUnlocked(
+        "evt-ach-1",
+        "u_ach_1",
+        "ACH_TICKER_SCALPER",
+        120,
+        Instant.parse("2026-02-28T16:00:00Z"));
+
+    verify(economyWalletService)
+        .creditBug(
+            "u_ach_1",
+            120,
+            "ACHIEVEMENT",
+            "ACH_TICKER_SCALPER",
+            "ACHIEVEMENT",
+            "achievement_ACH_TICKER_SCALPER_u_ach_1");
+  }
+
+  @Test
+  void onAchievementUnlocked_shouldSkipWhenRewardNonPositive() {
+    eventConsumerService.onAchievementUnlocked(
+        "evt-ach-2", "u_ach_2", "ACH_CHAOS_FULL_ON", 0, Instant.parse("2026-02-28T16:01:00Z"));
+
+    verifyNoInteractions(economyWalletService);
   }
 }

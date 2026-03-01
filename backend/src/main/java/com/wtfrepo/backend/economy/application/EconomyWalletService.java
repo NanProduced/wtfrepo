@@ -470,6 +470,9 @@ public class EconomyWalletService {
       case "HOUSE_STAKE" -> EconomyLedgerType.HOUSE_STAKE;
       case "HOUSE_WIN" -> EconomyLedgerType.HOUSE_WIN;
       case "MOON_DOOM_BONUS" -> EconomyLedgerType.MOON_DOOM_BONUS;
+      case "ACHIEVEMENT" -> EconomyLedgerType.ACHIEVEMENT;
+      case "ADMIN_GRANT" -> EconomyLedgerType.ADMIN_GRANT;
+      case "ADMIN_REVOKE" -> EconomyLedgerType.ADMIN_REVOKE;
       case "FORCE_SETTLE_REFUND" -> EconomyLedgerType.FORCE_SETTLE_REFUND;
       case "COMMENT_REVIEW_REFUND" -> EconomyLedgerType.COMMENT_REVIEW_REFUND;
       case "RAKE" -> EconomyLedgerType.RAKE;
@@ -482,6 +485,7 @@ public class EconomyWalletService {
       case "VOTE" -> EconomyLedgerType.ARENA_VOTE_COST;
       case "BET" -> EconomyLedgerType.BET;
       case "COMMENT" -> EconomyLedgerType.COMMENT;
+      case "ADMIN_REVOKE" -> EconomyLedgerType.ADMIN_REVOKE;
       default -> throw EconomyExceptions.invalidReason(EconomyConstants.Message.INVALID_REASON);
     };
   }
@@ -494,6 +498,8 @@ public class EconomyWalletService {
       case "HOUSE_STAKE" -> EconomyLedgerType.HOUSE_STAKE;
       case "HOUSE_WIN" -> EconomyLedgerType.HOUSE_WIN;
       case "MOON_DOOM_BONUS" -> EconomyLedgerType.MOON_DOOM_BONUS;
+      case "ACHIEVEMENT" -> EconomyLedgerType.ACHIEVEMENT;
+      case "ADMIN_GRANT" -> EconomyLedgerType.ADMIN_GRANT;
       case "FORCE_SETTLE_REFUND" -> EconomyLedgerType.FORCE_SETTLE_REFUND;
       case "COMMENT_REVIEW_REFUND" -> EconomyLedgerType.COMMENT_REVIEW_REFUND;
       case "RAKE" -> EconomyLedgerType.RAKE;

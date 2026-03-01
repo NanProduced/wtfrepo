@@ -33,13 +33,29 @@ public final class AdminApiSupport {
     return principal;
   }
 
+  public static AdminPrincipal requireSuperAdminPrincipal(Jwt jwt) {
+    AdminPrincipal principal = requireUserPrincipal(jwt);
+    if (!hasSuperAdminRole(principal.roles())) {
+      throw AdminExceptions.forbidden(AdminConstants.Message.FORBIDDEN_ADMIN);
+    }
+    return principal;
+  }
+
   private static boolean hasAdminRole(List<String> roles) {
     return roles.stream().anyMatch(AdminApiSupport::isAdminRole);
+  }
+
+  private static boolean hasSuperAdminRole(List<String> roles) {
+    return roles.stream().anyMatch(AdminApiSupport::isSuperAdminRole);
   }
 
   private static boolean isAdminRole(String role) {
     return AdminConstants.Role.ADMIN.equalsIgnoreCase(role)
         || AdminConstants.Role.MANAGER.equalsIgnoreCase(role);
+  }
+
+  private static boolean isSuperAdminRole(String role) {
+    return AdminConstants.Role.ADMIN.equalsIgnoreCase(role);
   }
 
   private static List<String> resolveRoles(Object rolesClaim) {
@@ -61,5 +77,4 @@ public final class AdminApiSupport {
       resolved.add(value);
     }
   }
-
 }

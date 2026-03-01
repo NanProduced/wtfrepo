@@ -11,4 +11,5 @@ public final class AdminAuditTargetType {
   public static final String SAFETY_TICKET = "SAFETY_TICKET";
   public static final String ALERT = "ALERT";
   public static final String BROADCAST = "BROADCAST";
+  public static final String SPECIMEN = "SPECIMEN";
 }

@@ -17,13 +17,41 @@ public class AchievementInboxService {
   private static final Logger log = LoggerFactory.getLogger(AchievementInboxService.class);
 
   private final AchievementInboxEventJpaRepository repository;
+  private final AchievementEvaluationService evaluationService;
 
-  public AchievementInboxService(AchievementInboxEventJpaRepository repository) {
+  public AchievementInboxService(
+      AchievementInboxEventJpaRepository repository,
+      AchievementEvaluationService evaluationService) {
     this.repository = repository;
+    this.evaluationService = evaluationService;
   }
 
   @Transactional
   public void recordVoteCompleted(OutboxStreamMessage message) {
+    recordInboundEvent(message);
+  }
+
+  @Transactional
+  public void recordWatchlistAdded(OutboxStreamMessage message) {
+    recordInboundEvent(message);
+  }
+
+  @Transactional
+  public void recordHypeParticipated(OutboxStreamMessage message) {
+    recordInboundEvent(message);
+  }
+
+  @Transactional
+  public void recordNarratorPreferenceChanged(OutboxStreamMessage message) {
+    recordInboundEvent(message);
+  }
+
+  @Transactional
+  public void recordTickerItemClicked(OutboxStreamMessage message) {
+    recordInboundEvent(message);
+  }
+
+  private void recordInboundEvent(OutboxStreamMessage message) {
     if (message == null || !StringUtils.hasText(message.eventId())) {
       log.warn("achievement_inbox_skip reason=missing_event_id");
       return;
@@ -40,7 +68,8 @@ public class AchievementInboxService {
             message.occurredAt());
 
     try {
-      repository.save(entity);
+      AchievementInboxEventJpaEntity saved = repository.save(entity);
+      evaluationService.evaluateInboundEvent(saved);
     } catch (DataIntegrityViolationException ex) {
       if (repository.existsById(message.eventId())) {
         return;

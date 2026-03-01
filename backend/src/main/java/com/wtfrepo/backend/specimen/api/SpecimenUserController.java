@@ -14,8 +14,10 @@ import com.wtfrepo.backend.specimen.application.SpecimenRepoIdentityService;
 import com.wtfrepo.backend.specimen.application.SpecimenQueryService;
 import com.wtfrepo.backend.specimen.application.SpecimenTagQueryService;
 import com.wtfrepo.backend.specimen.application.SpecimenWatchlistService;
+import com.wtfrepo.backend.specimen.application.SpecimenHypeService;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.AddWatchlistResult;
+import com.wtfrepo.backend.specimen.application.SpecimenHypeService.HypeParticipationResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.RepoIdentitiesResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.TagListResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.WatchlistPage;
@@ -52,16 +54,19 @@ public class SpecimenUserController {
   private final SpecimenWatchlistService specimenWatchlistService;
   private final SpecimenRepoIdentityService specimenRepoIdentityService;
   private final SpecimenQueryService specimenQueryService;
+  private final SpecimenHypeService specimenHypeService;
 
   public SpecimenUserController(
       SpecimenTagQueryService specimenTagQueryService,
       SpecimenWatchlistService specimenWatchlistService,
       SpecimenRepoIdentityService specimenRepoIdentityService,
-      SpecimenQueryService specimenQueryService) {
+      SpecimenQueryService specimenQueryService,
+      SpecimenHypeService specimenHypeService) {
     this.specimenTagQueryService = specimenTagQueryService;
     this.specimenWatchlistService = specimenWatchlistService;
     this.specimenRepoIdentityService = specimenRepoIdentityService;
     this.specimenQueryService = specimenQueryService;
+    this.specimenHypeService = specimenHypeService;
   }
 
   @GetMapping("/archive/specimens")
@@ -151,12 +156,16 @@ public class SpecimenUserController {
   @PostMapping("/specimens/{specimenId}/hype")
   public ResponseEntity<HypeResponse> hypeSpecimen(
       @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
-      @RequestHeader("X-Idempotency-Key") String idempotencyKey,
+      @RequestHeader("X-Idempotency-Key") @NotBlank String idempotencyKey,
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String specimenId,
       @Valid @RequestBody HypeRequest request) {
-    SpecimenApiSupport.requireUserId(jwt);
-    return ResponseEntity.ok(new HypeResponse(0.0D, 0.0D, 0.0D));
+    String userId = SpecimenApiSupport.requireUserId(jwt);
+    HypeParticipationResult result =
+        specimenHypeService.participate(
+            userId, specimenId, request.dimension(), request.clientTs(), idempotencyKey);
+    return ResponseEntity.ok(
+        new HypeResponse(result.hypeScore(), result.scoreDelta(), result.appliedWeight()));
   }
 
   public record WatchlistAddApiRequest(@NotBlank String specimenId, @Size(max = 32) String source) {}

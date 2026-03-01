@@ -24,6 +24,7 @@ import com.wtfrepo.backend.economy.domain.BetOrderStatus;
 import com.wtfrepo.backend.economy.domain.EconomyLedgerType;
 import com.wtfrepo.backend.economy.infra.persistence.entity.BetOrderJpaEntity;
 import com.wtfrepo.backend.economy.infra.persistence.entity.BetPoolJpaEntity;
+import com.wtfrepo.backend.economy.infra.persistence.repository.BetHouseConfigJpaRepository;
 import com.wtfrepo.backend.economy.infra.persistence.repository.BetOrderJpaRepository;
 import com.wtfrepo.backend.economy.infra.persistence.repository.BetPoolJpaRepository;
 import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
@@ -47,6 +48,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class BettingServiceTest {
 
   @Mock private BetPoolJpaRepository betPoolJpaRepository;
+  @Mock private BetHouseConfigJpaRepository betHouseConfigJpaRepository;
   @Mock private BetOrderJpaRepository betOrderJpaRepository;
   @Mock private SpecimenRatingJpaRepository specimenRatingJpaRepository;
   @Mock private SpecimenJpaRepository specimenJpaRepository;
@@ -61,6 +63,7 @@ class BettingServiceTest {
     bettingService =
         new BettingService(
             betPoolJpaRepository,
+            betHouseConfigJpaRepository,
             betOrderJpaRepository,
             specimenRatingJpaRepository,
             specimenJpaRepository,

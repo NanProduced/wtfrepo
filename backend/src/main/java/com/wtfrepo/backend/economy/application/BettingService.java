@@ -19,6 +19,8 @@ import com.wtfrepo.backend.economy.domain.BetPoolStatus;
 import com.wtfrepo.backend.economy.domain.EconomyLedgerType;
 import com.wtfrepo.backend.economy.infra.persistence.entity.BetOrderJpaEntity;
 import com.wtfrepo.backend.economy.infra.persistence.entity.BetPoolJpaEntity;
+import com.wtfrepo.backend.economy.infra.persistence.entity.BetHouseConfigJpaEntity;
+import com.wtfrepo.backend.economy.infra.persistence.repository.BetHouseConfigJpaRepository;
 import com.wtfrepo.backend.economy.infra.persistence.repository.BetOrderJpaRepository;
 import com.wtfrepo.backend.economy.infra.persistence.repository.BetPoolJpaRepository;
 import com.wtfrepo.backend.shared.outbox.OutboxEventCommand;
@@ -63,6 +65,7 @@ public class BettingService {
       EnumSet.of(BetOrderStatus.WON, BetOrderStatus.LOST, BetOrderStatus.CANCELLED);
 
   private final BetPoolJpaRepository betPoolJpaRepository;
+  private final BetHouseConfigJpaRepository betHouseConfigJpaRepository;
   private final BetOrderJpaRepository betOrderJpaRepository;
   private final SpecimenRatingJpaRepository specimenRatingJpaRepository;
   private final SpecimenJpaRepository specimenJpaRepository;
@@ -73,6 +76,7 @@ public class BettingService {
 
   public BettingService(
       BetPoolJpaRepository betPoolJpaRepository,
+      BetHouseConfigJpaRepository betHouseConfigJpaRepository,
       BetOrderJpaRepository betOrderJpaRepository,
       SpecimenRatingJpaRepository specimenRatingJpaRepository,
       SpecimenJpaRepository specimenJpaRepository,
@@ -81,6 +85,7 @@ public class BettingService {
       OutboxEventStore outboxEventStore,
       BettingPolicyProperties bettingPolicyProperties) {
     this.betPoolJpaRepository = betPoolJpaRepository;
+    this.betHouseConfigJpaRepository = betHouseConfigJpaRepository;
     this.betOrderJpaRepository = betOrderJpaRepository;
     this.specimenRatingJpaRepository = specimenRatingJpaRepository;
     this.specimenJpaRepository = specimenJpaRepository;
@@ -434,6 +439,27 @@ public class BettingService {
         StringUtils.hasText(triggerReason) ? triggerReason.trim() : "SETTLEMENT_RETRY_EXHAUSTED";
     return forceSettleInternal(
         "SETTLEMENT_RETRY_FALLBACK", normalizedReason, normalizedSpecimenId, tradingDay, now);
+  }
+
+  /**
+   * Executes admin-triggered force-settle for the current trading day.
+   *
+   * <p>Contract-aligned behavior: all pending orders are cancelled and refunded in full.
+   */
+  @Transactional
+  public ForceSettleResult forceSettleByAdmin(
+      String specimenId, String reason, Instant executionAt) {
+    if (!StringUtils.hasText(specimenId)) {
+      return new ForceSettleResult(
+          null, "INVALID_SPECIMEN_ID", null, null, 0, 0, 0L, false);
+    }
+    String normalizedSpecimenId = specimenId.trim();
+    Instant now = executionAt == null ? Instant.now() : executionAt;
+    LocalDate tradingDay = ArenaTradingDayResolver.currentTradingDay(now);
+    String normalizedReason =
+        StringUtils.hasText(reason) ? reason.trim() : "ADMIN_FORCE_SETTLE";
+    return forceSettleInternal(
+        "ADMIN_FORCE_SETTLE", normalizedReason, normalizedSpecimenId, tradingDay, now);
   }
 
   private ForceSettleResult forceSettleInternal(
@@ -803,7 +829,7 @@ public class BettingService {
       return lockedExisting.get();
     }
 
-    HouseAllocation allocation = resolveHouseAllocation();
+    HouseAllocation allocation = resolveHouseAllocation(specimenId);
     Instant cutoffAt = cutoffAt(tradingDay);
     BetPoolJpaEntity pool =
         BetPoolJpaEntity.createOpen(
@@ -950,17 +976,84 @@ public class BettingService {
     return payoutPool.divide(BigDecimal.valueOf(directionTotal), 4, RoundingMode.HALF_UP);
   }
 
-  private HouseAllocation resolveHouseAllocation() {
-    BigDecimal budget = BigDecimal.valueOf(bettingPolicyProperties.getHouseBudget());
-    long houseUp =
-        budget.multiply(bettingPolicyProperties.getHouseWeightUp()).setScale(0, RoundingMode.HALF_UP).longValue();
-    long houseFlat =
-        budget
-            .multiply(bettingPolicyProperties.getHouseWeightFlat())
-            .setScale(0, RoundingMode.HALF_UP)
-            .longValue();
-    long houseDown = Math.max(0L, bettingPolicyProperties.getHouseBudget() - houseUp - houseFlat);
+  private HouseAllocation resolveHouseAllocation(String specimenId) {
+    HouseConfigRecord config = findHouseConfig(specimenId);
+    BigDecimal budget =
+        BigDecimal.valueOf(
+            config != null ? config.houseBudget() : bettingPolicyProperties.getHouseBudget());
+    BigDecimal weightUp =
+        config != null ? config.weightUp() : bettingPolicyProperties.getHouseWeightUp();
+    BigDecimal weightFlat =
+        config != null ? config.weightFlat() : bettingPolicyProperties.getHouseWeightFlat();
+    BigDecimal weightDown =
+        config != null ? config.weightDown() : bettingPolicyProperties.getHouseWeightDown();
+
+    long houseUp = budget.multiply(weightUp).setScale(0, RoundingMode.HALF_UP).longValue();
+    long houseFlat = budget.multiply(weightFlat).setScale(0, RoundingMode.HALF_UP).longValue();
+    long houseDown = budget.multiply(weightDown).setScale(0, RoundingMode.HALF_UP).longValue();
+    long roundingDelta = budget.longValue() - houseUp - houseFlat - houseDown;
+    if (roundingDelta != 0L) {
+      houseDown = Math.max(0L, houseDown + roundingDelta);
+    }
     return new HouseAllocation(houseUp, houseFlat, houseDown);
+  }
+
+  @Transactional(readOnly = true)
+  public HouseConfigRecord findHouseConfig(String specimenId) {
+    if (!StringUtils.hasText(specimenId)) {
+      return null;
+    }
+    return betHouseConfigJpaRepository
+        .findBySpecimenId(specimenId.trim())
+        .map(this::toHouseConfigRecord)
+        .orElse(null);
+  }
+
+  @Transactional
+  public HouseConfigRecord updateHouseConfig(
+      String specimenId,
+      long houseBudget,
+      BigDecimal weightUp,
+      BigDecimal weightFlat,
+      BigDecimal weightDown,
+      String updatedBy) {
+    String normalizedSpecimenId = specimenId.trim();
+    if (specimenJpaRepository.findById(normalizedSpecimenId).isEmpty()) {
+      throw BettingExceptions.specimenNotFound(BettingConstants.Message.SPECIMEN_NOT_FOUND);
+    }
+
+    BetHouseConfigJpaEntity entity =
+        betHouseConfigJpaRepository.findBySpecimenId(normalizedSpecimenId).orElse(null);
+    if (entity == null) {
+      entity =
+          BetHouseConfigJpaEntity.create(
+              normalizedSpecimenId,
+              houseBudget,
+              weightUp,
+              weightFlat,
+              weightDown,
+              updatedBy);
+    } else {
+      entity.update(houseBudget, weightUp, weightFlat, weightDown, updatedBy);
+    }
+
+    BetHouseConfigJpaEntity saved = betHouseConfigJpaRepository.save(entity);
+    return toHouseConfigRecord(saved);
+  }
+
+  private HouseConfigRecord toHouseConfigRecord(BetHouseConfigJpaEntity entity) {
+    if (entity == null) {
+      return null;
+    }
+    return new HouseConfigRecord(
+        entity.getSpecimenId(),
+        entity.getHouseBudget(),
+        entity.getWeightUp(),
+        entity.getWeightFlat(),
+        entity.getWeightDown(),
+        entity.getUpdatedBy(),
+        entity.getUpdatedAt(),
+        entity.getCreatedAt());
   }
 
   private int resolveMoonDoomThreshold(SpecimenRatingJpaEntity rating) {
@@ -1542,6 +1635,17 @@ public class BettingService {
   /** Read-only preview of whether current pool state requires force-settle handling. */
   public record ForceSettleCandidateView(
       LocalDate tradingDay, String poolStatus, boolean forceSettleCandidate) {}
+
+  /** Snapshot of per-specimen house budget configuration. */
+  public record HouseConfigRecord(
+      String specimenId,
+      long houseBudget,
+      BigDecimal weightUp,
+      BigDecimal weightFlat,
+      BigDecimal weightDown,
+      String updatedBy,
+      Instant updatedAt,
+      Instant createdAt) {}
 
   private record PayoutRemainderCandidate(String orderId, BigDecimal fraction) {}
 

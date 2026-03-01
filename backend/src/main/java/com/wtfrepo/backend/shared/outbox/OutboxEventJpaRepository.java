@@ -28,4 +28,22 @@ public interface OutboxEventJpaRepository extends JpaRepository<OutboxEventJpaEn
       """)
   List<OutboxEventJpaEntity> findByStatusForUpdate(
       @Param("status") OutboxEventStatus status, Pageable pageable);
+
+  @Query(
+      """
+      select event
+      from OutboxEventJpaEntity event
+      where event.eventType in :eventTypes
+        and (
+          :cursorCreatedAt is null
+          or event.createdAt < :cursorCreatedAt
+          or (event.createdAt = :cursorCreatedAt and event.eventId < :cursorEventId)
+        )
+      order by event.createdAt desc, event.eventId desc
+      """)
+  List<OutboxEventJpaEntity> findTickerRecentCandidates(
+      @Param("eventTypes") List<String> eventTypes,
+      @Param("cursorCreatedAt") java.time.Instant cursorCreatedAt,
+      @Param("cursorEventId") String cursorEventId,
+      Pageable pageable);
 }

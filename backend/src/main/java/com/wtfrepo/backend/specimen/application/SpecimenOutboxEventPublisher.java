@@ -29,6 +29,8 @@ public class SpecimenOutboxEventPublisher {
   private static final String SPECIMEN_DEACTIVATED_EVENT = "SpecimenDeactivatedEvent";
   private static final String SPECIMEN_TAGS_CHANGED_EVENT = "SpecimenTagsChangedEvent";
   private static final String MATCH_CONFIG_CHANGED_EVENT = "MatchConfigChangedEvent";
+  private static final String WATCHLIST_ADDED_EVENT = "WatchlistAddedEvent";
+  private static final String HYPE_PARTICIPATED_EVENT = "HypeParticipatedEvent";
 
   private final OutboxEventStore outboxEventStore;
 
@@ -97,6 +99,59 @@ public class SpecimenOutboxEventPublisher {
         normalizedConfigType,
         MATCH_CONFIG_CHANGED_EVENT,
         eventKey("specimen:match-config-changed", normalizedConfigType, version, idempotencyKey),
+        payload);
+  }
+
+  public void publishWatchlistAdded(
+      String userId, String specimenId, String watchlistItemId, String source, Instant addedAt) {
+    String normalizedSource = StringUtils.hasText(source) ? source.trim() : "DETAIL";
+    Instant resolvedAddedAt = addedAt == null ? Instant.now() : addedAt;
+    WatchlistAddedEventPayload payload =
+        new WatchlistAddedEventPayload(
+            trimToNull(userId),
+            trimToNull(specimenId),
+            trimToNull(watchlistItemId),
+            normalizedSource,
+            resolvedAddedAt);
+    append(
+        AGGREGATE_TYPE_SPECIMEN,
+        specimenId,
+        WATCHLIST_ADDED_EVENT,
+        eventKey(
+            "specimen:watchlist-added",
+            specimenId,
+            userId,
+            normalizeText(userId) + ":" + normalizeText(specimenId)),
+        payload);
+  }
+
+  public void publishHypeParticipated(
+      String userId,
+      String specimenId,
+      String dimension,
+      String idempotencyKey,
+      Instant participatedAt,
+      Instant clientTs,
+      Double hypeScore,
+      Double scoreDelta,
+      Double appliedWeight) {
+    Instant resolvedParticipatedAt = participatedAt == null ? Instant.now() : participatedAt;
+    HypeParticipatedEventPayload payload =
+        new HypeParticipatedEventPayload(
+            trimToNull(userId),
+            trimToNull(specimenId),
+            trimToNull(dimension),
+            trimToNull(idempotencyKey),
+            resolvedParticipatedAt,
+            clientTs,
+            hypeScore,
+            scoreDelta,
+            appliedWeight);
+    append(
+        AGGREGATE_TYPE_SPECIMEN,
+        specimenId,
+        HYPE_PARTICIPATED_EVENT,
+        eventKey("specimen:hype-participated", specimenId, userId, idempotencyKey),
         payload);
   }
 
@@ -187,4 +242,18 @@ public class SpecimenOutboxEventPublisher {
       List<String> newDiagnosisTags) {}
 
   public record MatchConfigChangedEventPayload(String configType, String version) {}
+
+  public record WatchlistAddedEventPayload(
+      String userId, String specimenId, String watchlistItemId, String source, Instant addedAt) {}
+
+  public record HypeParticipatedEventPayload(
+      String userId,
+      String specimenId,
+      String dimension,
+      String idempotencyKey,
+      Instant participatedAt,
+      Instant clientTs,
+      Double hypeScore,
+      Double scoreDelta,
+      Double appliedWeight) {}
 }

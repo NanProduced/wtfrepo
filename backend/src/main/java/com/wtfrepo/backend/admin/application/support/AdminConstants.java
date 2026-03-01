@@ -46,6 +46,10 @@ public final class AdminConstants {
     public static final String INVALID_BAN_TYPE = "invalid_ban_type";
     public static final String INVALID_BAN_REQUEST = "invalid_ban_request";
     public static final String INVALID_BROADCAST_REQUEST = "invalid_broadcast_request";
+    public static final String INVALID_ECONOMY_GRANT_REQUEST = "invalid_economy_grant_request";
+    public static final String INVALID_BETTING_FORCE_SETTLE_REQUEST = "invalid_betting_force_settle_request";
+    public static final String INVALID_BETTING_HOUSE_CONFIG_REQUEST = "invalid_betting_house_config_request";
+    public static final String INSUFFICIENT_BUG = "insufficient_bug";
     public static final String BAN_NOT_FOUND = "ban_not_found";
     public static final String USER_NOT_FOUND = "user_not_found";
 

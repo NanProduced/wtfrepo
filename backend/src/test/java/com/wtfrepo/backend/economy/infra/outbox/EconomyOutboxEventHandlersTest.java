@@ -108,6 +108,27 @@ class EconomyOutboxEventHandlersTest {
         .onDailySnapshotCreated(any(), any(), any(), any(), any(), any(), any());
   }
 
+  @Test
+  void achievementUnlockedShouldDelegateToConsumerService() {
+    AchievementUnlockedOutboxEventHandler handler =
+        new AchievementUnlockedOutboxEventHandler(payloadReader, eventConsumerService);
+
+    Instant occurredAt = Instant.parse("2026-02-28T03:00:00Z");
+    handler.handle(
+        message(
+            "evt-achievement-1",
+            occurredAt,
+            "{\"userId\":\"u_8\",\"achievementCode\":\"ACH_TICKER_SCALPER\",\"rewardBug\":120}"));
+
+    verify(eventConsumerService)
+        .onAchievementUnlocked(
+            eq("evt-achievement-1"),
+            eq("u_8"),
+            eq("ACH_TICKER_SCALPER"),
+            eq(120),
+            eq(occurredAt));
+  }
+
   private OutboxStreamMessage message(String eventId, Instant occurredAt, String payload) {
     return new OutboxStreamMessage(
         "171111-0",

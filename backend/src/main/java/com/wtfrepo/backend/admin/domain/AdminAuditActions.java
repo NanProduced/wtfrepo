@@ -19,4 +19,8 @@ public final class AdminAuditActions {
   public static final String USER_BAN = "USER_BAN";
   public static final String USER_UNBAN = "USER_UNBAN";
   public static final String BROADCAST_SEND = "BROADCAST_SEND";
+  public static final String ECONOMY_GRANT = "ECONOMY_GRANT";
+  public static final String ECONOMY_REVOKE = "ECONOMY_REVOKE";
+  public static final String BETTING_FORCE_SETTLE = "BETTING_FORCE_SETTLE";
+  public static final String BETTING_HOUSE_CONFIG_UPDATE = "BETTING_HOUSE_CONFIG_UPDATE";
 }

@@ -1,10 +1,12 @@
 package com.wtfrepo.backend.economy.application;
 
+import com.wtfrepo.backend.economy.application.support.EconomyConstants;
 import java.time.Instant;
 import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * Economy-side external outbox event consumer application service.
@@ -16,11 +18,16 @@ import org.springframework.stereotype.Service;
 public class BettingOutboxEventConsumerService {
 
   private static final Logger log = LoggerFactory.getLogger(BettingOutboxEventConsumerService.class);
+  private static final String CREDIT_REASON_ACHIEVEMENT = "ACHIEVEMENT";
+  private static final String ACHIEVEMENT_IDEMPOTENCY_PREFIX = "achievement_";
 
   private final BettingService bettingService;
+  private final EconomyWalletService economyWalletService;
 
-  public BettingOutboxEventConsumerService(BettingService bettingService) {
+  public BettingOutboxEventConsumerService(
+      BettingService bettingService, EconomyWalletService economyWalletService) {
     this.bettingService = bettingService;
+    this.economyWalletService = economyWalletService;
   }
 
   /**
@@ -91,5 +98,57 @@ public class BettingOutboxEventConsumerService {
         eloClose,
         deltaR,
         occurredAt);
+  }
+
+  /**
+   * Handles Achievements {@code AchievementUnlockedEvent} by issuing reward credits to wallet.
+   *
+   * <p>Credit write stays idempotent via deterministic key format.
+   */
+  public void onAchievementUnlocked(
+      String eventId,
+      String userId,
+      String achievementCode,
+      Integer rewardBug,
+      Instant occurredAt) {
+    if (!StringUtils.hasText(userId) || !StringUtils.hasText(achievementCode)) {
+      log.warn(
+          "economy_outbox_achievement_unlocked_skip eventId={} reason=missing_required_fields",
+          eventId);
+      return;
+    }
+
+    int normalizedRewardBug = rewardBug == null ? 0 : rewardBug;
+    if (normalizedRewardBug <= 0) {
+      log.info(
+          "economy_outbox_achievement_unlocked_skip eventId={} userId={} achievementCode={} reason=non_positive_reward rewardBug={}",
+          eventId,
+          userId,
+          achievementCode,
+          normalizedRewardBug);
+      return;
+    }
+
+    EconomyWalletService.LedgerWriteResult ledgerWriteResult =
+        economyWalletService.creditBug(
+            userId.trim(),
+            normalizedRewardBug,
+            CREDIT_REASON_ACHIEVEMENT,
+            achievementCode.trim(),
+            EconomyConstants.RefType.ACHIEVEMENT,
+            achievementRewardIdempotencyKey(userId, achievementCode));
+
+    log.info(
+        "economy_outbox_achievement_unlocked_consumed eventId={} userId={} achievementCode={} rewardBug={} ledgerId={} balanceAfter={}",
+        eventId,
+        userId,
+        achievementCode,
+        normalizedRewardBug,
+        ledgerWriteResult.ledgerId(),
+        ledgerWriteResult.balanceAfter());
+  }
+
+  private String achievementRewardIdempotencyKey(String userId, String achievementCode) {
+    return ACHIEVEMENT_IDEMPOTENCY_PREFIX + achievementCode.trim() + "_" + userId.trim();
   }
 }
