@@ -24,4 +24,12 @@ public final class ArenaTradingDayResolver {
   public static LocalDate settlementTradingDay(Instant now) {
     return currentTradingDay(now);
   }
+
+  public static Instant tradingDayStart(LocalDate tradingDay) {
+    return tradingDay.atTime(MARKET_OPEN_UTC).toInstant(ZoneOffset.UTC);
+  }
+
+  public static Instant nextTradingDayStart(LocalDate tradingDay) {
+    return tradingDay.plusDays(1).atTime(MARKET_OPEN_UTC).toInstant(ZoneOffset.UTC);
+  }
 }

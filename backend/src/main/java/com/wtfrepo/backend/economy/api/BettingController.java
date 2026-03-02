@@ -80,14 +80,23 @@ public class BettingController {
   }
 
   @GetMapping("/specimens/{specimenId}/bet-summary")
-  public ResponseEntity<BetSummaryResponse> summary(@PathVariable String specimenId) {
-    BettingService.BetSummaryView summary = bettingService.getBetSummary(specimenId);
+  public ResponseEntity<BetSummaryResponse> summary(
+      @PathVariable String specimenId, @AuthenticationPrincipal Jwt jwt) {
+    BettingService.BetSummaryView summary =
+        bettingService.getBetSummary(specimenId, resolveOptionalUserId(jwt));
     return ResponseEntity.ok(BetSummaryResponse.from(summary));
   }
 
   private String requireUserId(Jwt jwt) {
     if (jwt == null || !StringUtils.hasText(jwt.getSubject())) {
       throw BettingExceptions.unauthorized(BettingConstants.Message.AUTH_REQUIRED);
+    }
+    return jwt.getSubject();
+  }
+
+  private String resolveOptionalUserId(Jwt jwt) {
+    if (jwt == null || !StringUtils.hasText(jwt.getSubject())) {
+      return null;
     }
     return jwt.getSubject();
   }

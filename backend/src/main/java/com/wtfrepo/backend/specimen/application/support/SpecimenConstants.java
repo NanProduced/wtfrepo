@@ -37,6 +37,7 @@ public final class SpecimenConstants {
     public static final String SPECIMEN_NOT_FOUND = "specimen_not_found";
     public static final String INVALID_ACTION = "invalid_action";
     public static final String INVALID_SORT = "invalid_sort";
+    public static final String INVALID_METRIC = "invalid_metric";
     public static final String INVALID_CURSOR = "invalid_cursor";
     public static final String WATCHLIST_LIMIT_EXCEEDED = "watchlist_limit_exceeded";
     public static final String INVALID_TAG = "invalid_tag";

@@ -27,6 +27,13 @@ final class SpecimenApiSupport {
     return jwt.getSubject();
   }
 
+  static String resolveOptionalUserId(Jwt jwt) {
+    if (jwt == null || !StringUtils.hasText(jwt.getSubject())) {
+      return null;
+    }
+    return jwt.getSubject();
+  }
+
   static String requireAdminUserId(Jwt jwt) {
     String userId = requireUserId(jwt);
     if (!hasAdminRole(jwt)) {
@@ -179,6 +186,102 @@ final class SpecimenApiSupport {
           page.items().stream().map(ArchiveItemResponse::from).toList(),
           page.nextCursor(),
           page.hasMore());
+    }
+  }
+
+  record ArchiveInsightsResponse(
+      ArchiveSummaryResponse summary,
+      ArchiveMomentumResponse momentum,
+      List<ArchiveMomentumMoverResponse> topRising,
+      List<ArchiveMomentumMoverResponse> topFalling) {
+
+    static ArchiveInsightsResponse from(SpecimenModels.ArchiveInsightsResult value) {
+      return new ArchiveInsightsResponse(
+          ArchiveSummaryResponse.from(value.summary()),
+          ArchiveMomentumResponse.from(value.momentum()),
+          value.topRising().stream().map(ArchiveMomentumMoverResponse::from).toList(),
+          value.topFalling().stream().map(ArchiveMomentumMoverResponse::from).toList());
+    }
+  }
+
+  record ArchiveSummaryResponse(
+      long totalSpecimens,
+      long totalVotes,
+      long todayArenaBattles,
+      double averageElo,
+      double averageHype,
+      String tradingDay) {
+
+    static ArchiveSummaryResponse from(SpecimenModels.ArchiveSummaryResult value) {
+      return new ArchiveSummaryResponse(
+          value.totalSpecimens(),
+          value.totalVotes(),
+          value.todayArenaBattles(),
+          value.averageElo(),
+          value.averageHype(),
+          value.tradingDay());
+    }
+  }
+
+  record ArchiveMomentumResponse(int rising, int unchanged, int falling) {
+
+    static ArchiveMomentumResponse from(SpecimenModels.ArchiveMomentumResult value) {
+      return new ArchiveMomentumResponse(value.rising(), value.unchanged(), value.falling());
+    }
+  }
+
+  record ArchiveMomentumMoverResponse(
+      String specimenId,
+      String repoFullName,
+      int rank,
+      int previousRank,
+      int rankDelta,
+      ArchiveMetricsResponse metrics) {
+
+    static ArchiveMomentumMoverResponse from(SpecimenModels.ArchiveMomentumMoverResult value) {
+      return new ArchiveMomentumMoverResponse(
+          value.specimenId(),
+          value.repoFullName(),
+          value.rank(),
+          value.previousRank(),
+          value.rankDelta(),
+          ArchiveMetricsResponse.from(value.metrics()));
+    }
+  }
+
+  record ArchiveLeaderboardResponse(
+      String metric,
+      List<ArchiveLeaderboardItemResponse> items,
+      String nextCursor,
+      boolean hasMore,
+      long total) {
+
+    static ArchiveLeaderboardResponse from(SpecimenModels.ArchiveLeaderboardPage value) {
+      return new ArchiveLeaderboardResponse(
+          value.metric(),
+          value.items().stream().map(ArchiveLeaderboardItemResponse::from).toList(),
+          value.nextCursor(),
+          value.hasMore(),
+          value.total());
+    }
+  }
+
+  record ArchiveLeaderboardItemResponse(
+      String specimenId,
+      String repoFullName,
+      int rank,
+      Integer rankDelta,
+      double score,
+      ArchiveMetricsResponse metrics) {
+
+    static ArchiveLeaderboardItemResponse from(SpecimenModels.ArchiveLeaderboardItemResult value) {
+      return new ArchiveLeaderboardItemResponse(
+          value.specimenId(),
+          value.repoFullName(),
+          value.rank(),
+          value.rankDelta(),
+          value.score(),
+          ArchiveMetricsResponse.from(value.metrics()));
     }
   }
 

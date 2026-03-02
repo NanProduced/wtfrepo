@@ -1,10 +1,21 @@
 package com.wtfrepo.backend.specimen.application;
 
+import com.wtfrepo.backend.arena.application.support.ArenaTradingDayResolver;
+import com.wtfrepo.backend.arena.infra.persistence.entity.EloDailySnapshotJpaEntity;
+import com.wtfrepo.backend.arena.infra.persistence.repository.BattleVoteJpaRepository;
+import com.wtfrepo.backend.arena.infra.persistence.repository.EloDailySnapshotJpaRepository;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveGithubMetaResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveInsightsResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveItemResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveLeaderboardItemResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveLeaderboardPage;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveLeaderboardQuery;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveMetricsResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveMomentumMoverResult;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveMomentumResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchivePage;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveQuery;
+import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveSummaryResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.ArchiveTagResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DetailCodeHighlightResult;
 import com.wtfrepo.backend.specimen.application.model.SpecimenModels.DetailGithubLicenseResult;
@@ -55,6 +66,9 @@ import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenReadmeE
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenRepoIdentityJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.SpecimenTagJpaRepository;
 import com.wtfrepo.backend.specimen.infra.persistence.repository.TagDefinitionJpaRepository;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -87,6 +101,8 @@ public class SpecimenQueryService {
   private final SpecimenRepoIdentityJpaRepository specimenRepoIdentityJpaRepository;
   private final SpecimenTagJpaRepository specimenTagJpaRepository;
   private final TagDefinitionJpaRepository tagDefinitionJpaRepository;
+  private final BattleVoteJpaRepository battleVoteJpaRepository;
+  private final EloDailySnapshotJpaRepository eloDailySnapshotJpaRepository;
   private final SpecimenContractProperties specimenContractProperties;
   private final SpecimenJsonCodec specimenJsonCodec;
 
@@ -101,6 +117,8 @@ public class SpecimenQueryService {
       SpecimenRepoIdentityJpaRepository specimenRepoIdentityJpaRepository,
       SpecimenTagJpaRepository specimenTagJpaRepository,
       TagDefinitionJpaRepository tagDefinitionJpaRepository,
+      BattleVoteJpaRepository battleVoteJpaRepository,
+      EloDailySnapshotJpaRepository eloDailySnapshotJpaRepository,
       SpecimenContractProperties specimenContractProperties,
       SpecimenJsonCodec specimenJsonCodec) {
     this.specimenJpaRepository = specimenJpaRepository;
@@ -113,6 +131,8 @@ public class SpecimenQueryService {
     this.specimenRepoIdentityJpaRepository = specimenRepoIdentityJpaRepository;
     this.specimenTagJpaRepository = specimenTagJpaRepository;
     this.tagDefinitionJpaRepository = tagDefinitionJpaRepository;
+    this.battleVoteJpaRepository = battleVoteJpaRepository;
+    this.eloDailySnapshotJpaRepository = eloDailySnapshotJpaRepository;
     this.specimenContractProperties = specimenContractProperties;
     this.specimenJsonCodec = specimenJsonCodec;
   }
@@ -215,7 +235,155 @@ public class SpecimenQueryService {
   }
 
   @Transactional(readOnly = true)
-  public DrawerResult getDrawer(String specimenId, String locale) {
+  public ArchiveInsightsResult getArchiveInsights() {
+    List<ArchiveAggregateCandidate> candidates = loadActiveAggregateCandidates();
+    if (candidates.isEmpty()) {
+      LocalDate tradingDay = ArenaTradingDayResolver.currentTradingDay(Instant.now());
+      return new ArchiveInsightsResult(
+          new ArchiveSummaryResult(0L, 0L, 0L, 0.0D, 0.0D, tradingDay.toString()),
+          new ArchiveMomentumResult(0, 0, 0),
+          List.of(),
+          List.of());
+    }
+
+    LocalDate tradingDay = ArenaTradingDayResolver.currentTradingDay(Instant.now());
+    Set<String> specimenIds =
+        candidates.stream().map(ArchiveAggregateCandidate::specimenId).collect(
+            LinkedHashSet::new,
+            LinkedHashSet::add,
+            LinkedHashSet::addAll);
+    Map<String, Integer> previousRanks = resolvePreviousEloRankBySpecimenId(specimenIds, tradingDay);
+
+    List<RankedArchiveCandidate> rankedByElo = rankArchiveCandidates(candidates, ArchiveLeaderboardMetric.ELO);
+    List<ArchiveMomentumMoverResult> movers = new ArrayList<>();
+    int rising = 0;
+    int unchanged = 0;
+    int falling = 0;
+
+    for (RankedArchiveCandidate ranked : rankedByElo) {
+      Integer previousRank = previousRanks.get(ranked.candidate().specimenId());
+      if (previousRank == null) {
+        continue;
+      }
+      int rankDelta = previousRank - ranked.rank();
+      if (rankDelta > 0) {
+        rising += 1;
+      } else if (rankDelta < 0) {
+        falling += 1;
+      } else {
+        unchanged += 1;
+      }
+      movers.add(
+          new ArchiveMomentumMoverResult(
+              ranked.candidate().specimenId(),
+              ranked.candidate().repoFullName(),
+              ranked.rank(),
+              previousRank,
+              rankDelta,
+              ranked.candidate().metrics()));
+    }
+
+    List<ArchiveMomentumMoverResult> topRising =
+        movers.stream()
+            .filter(value -> value.rankDelta() > 0)
+            .sorted(
+                Comparator.comparingInt(ArchiveMomentumMoverResult::rankDelta)
+                    .reversed()
+                    .thenComparingInt(ArchiveMomentumMoverResult::rank))
+            .limit(5)
+            .toList();
+
+    List<ArchiveMomentumMoverResult> topFalling =
+        movers.stream()
+            .filter(value -> value.rankDelta() < 0)
+            .sorted(
+                Comparator.comparingInt(ArchiveMomentumMoverResult::rankDelta)
+                    .thenComparingInt(ArchiveMomentumMoverResult::rank))
+            .limit(5)
+            .toList();
+
+    long totalVotes = candidates.stream().mapToLong(value -> value.metrics().votes()).sum();
+    double averageElo =
+        candidates.stream().mapToInt(value -> value.metrics().elo()).average().orElse(0.0D);
+    double averageHype =
+        candidates.stream().mapToDouble(value -> value.metrics().hype()).average().orElse(0.0D);
+
+    Instant fromInclusive = tradingDay.atStartOfDay(ZoneOffset.UTC).toInstant();
+    Instant toExclusive = tradingDay.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+    long todayArenaBattles =
+        battleVoteJpaRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            fromInclusive, toExclusive);
+
+    return new ArchiveInsightsResult(
+        new ArchiveSummaryResult(
+            candidates.size(),
+            totalVotes,
+            todayArenaBattles,
+            averageElo,
+            averageHype,
+            tradingDay.toString()),
+        new ArchiveMomentumResult(rising, unchanged, falling),
+        topRising,
+        topFalling);
+  }
+
+  @Transactional(readOnly = true)
+  public ArchiveLeaderboardPage listArchiveLeaderboard(ArchiveLeaderboardQuery query) {
+    ArchiveLeaderboardMetric metric = resolveArchiveLeaderboardMetric(query.metric());
+    int resolvedLimit = resolveArchiveLimit(query.limit());
+    int pageIndex = resolvePageIndex(query.cursor());
+
+    List<ArchiveAggregateCandidate> candidates = loadActiveAggregateCandidates();
+    if (candidates.isEmpty()) {
+      return new ArchiveLeaderboardPage(metric.name(), List.of(), null, false, 0L);
+    }
+
+    List<RankedArchiveCandidate> rankedCandidates = rankArchiveCandidates(candidates, metric);
+    Map<String, Integer> previousEloRanks = Map.of();
+    if (metric == ArchiveLeaderboardMetric.ELO) {
+      Set<String> specimenIds =
+          candidates.stream().map(ArchiveAggregateCandidate::specimenId).collect(
+              LinkedHashSet::new,
+              LinkedHashSet::add,
+              LinkedHashSet::addAll);
+      previousEloRanks =
+          resolvePreviousEloRankBySpecimenId(
+              specimenIds, ArenaTradingDayResolver.currentTradingDay(Instant.now()));
+    }
+
+    List<ArchiveLeaderboardItemResult> items = new ArrayList<>(rankedCandidates.size());
+    for (RankedArchiveCandidate ranked : rankedCandidates) {
+      Integer rankDelta = null;
+      if (metric == ArchiveLeaderboardMetric.ELO) {
+        Integer previousRank = previousEloRanks.get(ranked.candidate().specimenId());
+        if (previousRank != null) {
+          rankDelta = previousRank - ranked.rank();
+        }
+      }
+      items.add(
+          new ArchiveLeaderboardItemResult(
+              ranked.candidate().specimenId(),
+              ranked.candidate().repoFullName(),
+              ranked.rank(),
+              rankDelta,
+              ranked.score(),
+              ranked.candidate().metrics()));
+    }
+
+    int startIndex = pageIndex * resolvedLimit;
+    if (startIndex >= items.size()) {
+      return new ArchiveLeaderboardPage(metric.name(), List.of(), null, false, items.size());
+    }
+
+    int endIndex = Math.min(items.size(), startIndex + resolvedLimit);
+    List<ArchiveLeaderboardItemResult> paged = items.subList(startIndex, endIndex);
+    boolean hasMore = endIndex < items.size();
+    String nextCursor = hasMore ? String.valueOf(pageIndex + 1) : null;
+    return new ArchiveLeaderboardPage(metric.name(), paged, nextCursor, hasMore, items.size());
+  }
+
+  @Transactional(readOnly = true)
+  public DrawerResult getDrawer(String specimenId, String userId, String locale) {
     String normalizedLocale = normalizeLocale(locale);
     SpecimenJpaEntity specimen = requireActiveSpecimen(specimenId);
     SpecimenGithubMetadataJpaEntity metadata =
@@ -243,6 +411,9 @@ public class SpecimenQueryService {
                         tagDisplayNames.getOrDefault(tag.getTagKey(), tag.getTagKey())))
             .toList();
 
+    boolean canOpenInternalDetail =
+        hasUserVotedForSpecimenInTradingDay(userId, specimenId, Instant.now());
+
     return new DrawerResult(
         new DrawerSpecimenResult(specimen.getSpecimenId(), specimen.getRepoFullName(), specimen.getGithubUrl()),
         toDrawerGithubMeta(metadata, specimen.getGithubUrl()),
@@ -250,7 +421,7 @@ public class SpecimenQueryService {
         excerpt == null ? null : new DrawerReadmeExcerptResult(excerpt.getExcerptType(), excerpt.getText()),
         drawerTags,
         toTopRoastSummary(communityMetrics),
-        false,
+        canOpenInternalDetail,
         new DrawerGithubJumpWarningResult("⚠️ 警告：高辐射区域", "您即将进入 GitHub，请确认已穿戴防护服"));
   }
 
@@ -568,6 +739,137 @@ public class SpecimenQueryService {
         : commentary.getOneLinerEn();
   }
 
+  private List<ArchiveAggregateCandidate> loadActiveAggregateCandidates() {
+    List<SpecimenJpaEntity> activeSpecimens = specimenJpaRepository.findByStatus(SpecimenStatus.ACTIVE);
+    if (activeSpecimens.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> specimenIds =
+        activeSpecimens.stream().map(SpecimenJpaEntity::getSpecimenId).collect(
+            LinkedHashSet::new,
+            LinkedHashSet::add,
+            LinkedHashSet::addAll);
+
+    Map<String, SpecimenArenaMetricsJpaEntity> metricsBySpecimenId =
+        specimenArenaMetricsJpaRepository.findAllById(specimenIds).stream()
+            .collect(
+                LinkedHashMap::new,
+                (map, value) -> map.put(value.getSpecimenId(), value),
+                LinkedHashMap::putAll);
+
+    List<ArchiveAggregateCandidate> candidates = new ArrayList<>(activeSpecimens.size());
+    for (SpecimenJpaEntity specimen : activeSpecimens) {
+      candidates.add(
+          new ArchiveAggregateCandidate(
+              specimen.getSpecimenId(),
+              specimen.getRepoFullName(),
+              toArchiveMetrics(metricsBySpecimenId.get(specimen.getSpecimenId()))));
+    }
+    return candidates;
+  }
+
+  private List<RankedArchiveCandidate> rankArchiveCandidates(
+      List<ArchiveAggregateCandidate> candidates, ArchiveLeaderboardMetric metric) {
+    Comparator<ArchiveAggregateCandidate> comparator;
+    if (metric == ArchiveLeaderboardMetric.ELO) {
+      comparator =
+          Comparator.comparing(
+                  (ArchiveAggregateCandidate value) -> value.metrics().elo(),
+                  Comparator.reverseOrder())
+              .thenComparing(
+                  (ArchiveAggregateCandidate value) -> value.metrics().hype(),
+                  Comparator.reverseOrder())
+              .thenComparing(
+                  (ArchiveAggregateCandidate value) -> value.metrics().votes(),
+                  Comparator.reverseOrder())
+              .thenComparing(ArchiveAggregateCandidate::specimenId);
+    } else {
+      comparator =
+          Comparator.comparing(
+                  (ArchiveAggregateCandidate value) -> value.metrics().hype(),
+                  Comparator.reverseOrder())
+              .thenComparing(
+                  (ArchiveAggregateCandidate value) -> value.metrics().votes(),
+                  Comparator.reverseOrder())
+              .thenComparing(
+                  (ArchiveAggregateCandidate value) -> value.metrics().elo(),
+                  Comparator.reverseOrder())
+              .thenComparing(ArchiveAggregateCandidate::specimenId);
+    }
+
+    List<ArchiveAggregateCandidate> sorted = new ArrayList<>(candidates);
+    sorted.sort(comparator);
+
+    List<RankedArchiveCandidate> ranked = new ArrayList<>(sorted.size());
+    Double previousScore = null;
+    int previousRank = 0;
+    for (int index = 0; index < sorted.size(); index += 1) {
+      ArchiveAggregateCandidate candidate = sorted.get(index);
+      double currentScore = resolveLeaderboardScore(candidate, metric);
+      int rank =
+          previousScore != null && Double.compare(previousScore, currentScore) == 0
+              ? previousRank
+              : index + 1;
+      ranked.add(new RankedArchiveCandidate(candidate, rank, currentScore));
+      previousScore = currentScore;
+      previousRank = rank;
+    }
+    return ranked;
+  }
+
+  private Map<String, Integer> resolvePreviousEloRankBySpecimenId(
+      Set<String> specimenIds, LocalDate tradingDay) {
+    if (specimenIds.isEmpty()) {
+      return Map.of();
+    }
+
+    LocalDate previousTradingDay = tradingDay.minusDays(1);
+    List<EloDailySnapshotJpaEntity> snapshots =
+        eloDailySnapshotJpaRepository.findAllBySpecimenIdInAndDateBetween(
+            specimenIds, previousTradingDay, previousTradingDay);
+    if (snapshots.isEmpty()) {
+      return Map.of();
+    }
+
+    snapshots.sort(
+        Comparator.comparingInt(EloDailySnapshotJpaEntity::getEloClose)
+            .reversed()
+            .thenComparing(EloDailySnapshotJpaEntity::getSpecimenId));
+
+    Map<String, Integer> rankBySpecimenId = new HashMap<>();
+    Integer previousScore = null;
+    int previousRank = 0;
+    for (int index = 0; index < snapshots.size(); index += 1) {
+      EloDailySnapshotJpaEntity snapshot = snapshots.get(index);
+      int currentScore = snapshot.getEloClose();
+      int rank =
+          previousScore != null && previousScore == currentScore ? previousRank : index + 1;
+      rankBySpecimenId.put(snapshot.getSpecimenId(), rank);
+      previousScore = currentScore;
+      previousRank = rank;
+    }
+    return rankBySpecimenId;
+  }
+
+  private ArchiveLeaderboardMetric resolveArchiveLeaderboardMetric(String metric) {
+    if (!StringUtils.hasText(metric)) {
+      return ArchiveLeaderboardMetric.ELO;
+    }
+    try {
+      return ArchiveLeaderboardMetric.valueOf(metric.trim().toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException ex) {
+      throw SpecimenExceptions.validation(SpecimenConstants.Message.INVALID_METRIC);
+    }
+  }
+
+  private double resolveLeaderboardScore(
+      ArchiveAggregateCandidate candidate, ArchiveLeaderboardMetric metric) {
+    return metric == ArchiveLeaderboardMetric.ELO
+        ? candidate.metrics().elo()
+        : candidate.metrics().hype();
+  }
+
   private ArchiveSort resolveArchiveSort(String sort) {
     if (!StringUtils.hasText(sort)) {
       return ArchiveSort.HOT;
@@ -598,6 +900,20 @@ public class SpecimenQueryService {
               Comparator.reverseOrder());
     }
     items.sort(comparator.thenComparing(ArchiveItemResult::specimenId));
+  }
+
+  private boolean hasUserVotedForSpecimenInTradingDay(
+      String userId, String specimenId, Instant now) {
+    if (!StringUtils.hasText(userId) || !StringUtils.hasText(specimenId)) {
+      return false;
+    }
+
+    LocalDate tradingDay = ArenaTradingDayResolver.currentTradingDay(now);
+    Instant fromInclusive = ArenaTradingDayResolver.tradingDayStart(tradingDay);
+    Instant toExclusive = ArenaTradingDayResolver.nextTradingDayStart(tradingDay);
+    return battleVoteJpaRepository.countUserVotesForSpecimenBetween(
+            userId.trim(), specimenId.trim(), fromInclusive, toExclusive)
+        > 0L;
   }
 
   private int resolveArchiveLimit(Integer limit) {
@@ -662,4 +978,14 @@ public class SpecimenQueryService {
     NEW,
     INSANE
   }
+
+  private enum ArchiveLeaderboardMetric {
+    ELO,
+    HYPE
+  }
+
+  private record ArchiveAggregateCandidate(
+      String specimenId, String repoFullName, ArchiveMetricsResult metrics) {}
+
+  private record RankedArchiveCandidate(ArchiveAggregateCandidate candidate, int rank, double score) {}
 }

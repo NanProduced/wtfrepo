@@ -154,6 +154,47 @@ public final class SpecimenModels {
 
   public record ArchivePage(List<ArchiveItemResult> items, String nextCursor, boolean hasMore) {}
 
+  public record ArchiveLeaderboardQuery(String metric, String cursor, Integer limit) {}
+
+  public record ArchiveLeaderboardItemResult(
+      String specimenId,
+      String repoFullName,
+      int rank,
+      Integer rankDelta,
+      double score,
+      ArchiveMetricsResult metrics) {}
+
+  public record ArchiveLeaderboardPage(
+      String metric,
+      List<ArchiveLeaderboardItemResult> items,
+      String nextCursor,
+      boolean hasMore,
+      long total) {}
+
+  public record ArchiveMomentumResult(int rising, int unchanged, int falling) {}
+
+  public record ArchiveMomentumMoverResult(
+      String specimenId,
+      String repoFullName,
+      int rank,
+      int previousRank,
+      int rankDelta,
+      ArchiveMetricsResult metrics) {}
+
+  public record ArchiveSummaryResult(
+      long totalSpecimens,
+      long totalVotes,
+      long todayArenaBattles,
+      double averageElo,
+      double averageHype,
+      String tradingDay) {}
+
+  public record ArchiveInsightsResult(
+      ArchiveSummaryResult summary,
+      ArchiveMomentumResult momentum,
+      List<ArchiveMomentumMoverResult> topRising,
+      List<ArchiveMomentumMoverResult> topFalling) {}
+
   public record DrawerSpecimenResult(String specimenId, String repoFullName, String githubUrl) {}
 
   public record DrawerGithubMetaResult(

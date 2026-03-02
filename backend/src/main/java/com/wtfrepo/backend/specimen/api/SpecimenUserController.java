@@ -8,6 +8,8 @@ import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.WatchlistAddResponse;
 import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.WatchlistListResponse;
 import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.WatchlistRemoveResponse;
 import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.ArchiveResponse;
+import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.ArchiveInsightsResponse;
+import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.ArchiveLeaderboardResponse;
 import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.DrawerResponse;
 import com.wtfrepo.backend.specimen.api.SpecimenApiSupport.DetailResponse;
 import com.wtfrepo.backend.specimen.application.SpecimenRepoIdentityService;
@@ -83,12 +85,34 @@ public class SpecimenUserController {
     return ResponseEntity.ok(ArchiveResponse.from(page));
   }
 
+  @GetMapping("/archive/insights")
+  public ResponseEntity<ArchiveInsightsResponse> getArchiveInsights(
+      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId) {
+    SpecimenModels.ArchiveInsightsResult result = specimenQueryService.getArchiveInsights();
+    return ResponseEntity.ok(ArchiveInsightsResponse.from(result));
+  }
+
+  @GetMapping("/archive/leaderboard")
+  public ResponseEntity<ArchiveLeaderboardResponse> listArchiveLeaderboard(
+      @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
+      @RequestParam(required = false) String metric,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) @Min(1) @Max(100) Integer limit) {
+    SpecimenModels.ArchiveLeaderboardPage page =
+        specimenQueryService.listArchiveLeaderboard(
+            new SpecimenModels.ArchiveLeaderboardQuery(metric, cursor, limit));
+    return ResponseEntity.ok(ArchiveLeaderboardResponse.from(page));
+  }
+
   @GetMapping("/specimens/{specimenId}/drawer")
   public ResponseEntity<DrawerResponse> getDrawer(
       @RequestHeader(RequestIdConstants.HEADER_NAME) String requestId,
       @PathVariable String specimenId,
+      @AuthenticationPrincipal Jwt jwt,
       @RequestHeader(value = "Accept-Language", required = false) String locale) {
-    SpecimenModels.DrawerResult result = specimenQueryService.getDrawer(specimenId, locale);
+    SpecimenModels.DrawerResult result =
+        specimenQueryService.getDrawer(
+            specimenId, SpecimenApiSupport.resolveOptionalUserId(jwt), locale);
     return ResponseEntity.ok(DrawerResponse.from(result));
   }
 

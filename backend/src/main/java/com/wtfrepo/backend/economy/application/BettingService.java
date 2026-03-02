@@ -4,6 +4,7 @@ import com.wtfrepo.backend.arena.application.support.ArenaTradingDayResolver;
 import com.wtfrepo.backend.arena.domain.ArenaIpoStatus;
 import com.wtfrepo.backend.arena.infra.persistence.entity.EloDailySnapshotJpaEntity;
 import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenRatingJpaEntity;
+import com.wtfrepo.backend.arena.infra.persistence.repository.BattleVoteJpaRepository;
 import com.wtfrepo.backend.arena.infra.persistence.repository.EloDailySnapshotJpaRepository;
 import com.wtfrepo.backend.arena.infra.persistence.repository.SpecimenRatingJpaRepository;
 import com.wtfrepo.backend.economy.application.EconomyWalletService.CreditCommand;
@@ -70,6 +71,7 @@ public class BettingService {
   private final SpecimenRatingJpaRepository specimenRatingJpaRepository;
   private final SpecimenJpaRepository specimenJpaRepository;
   private final EloDailySnapshotJpaRepository eloDailySnapshotJpaRepository;
+  private final BattleVoteJpaRepository battleVoteJpaRepository;
   private final EconomyWalletService economyWalletService;
   private final OutboxEventStore outboxEventStore;
   private final BettingPolicyProperties bettingPolicyProperties;
@@ -81,6 +83,7 @@ public class BettingService {
       SpecimenRatingJpaRepository specimenRatingJpaRepository,
       SpecimenJpaRepository specimenJpaRepository,
       EloDailySnapshotJpaRepository eloDailySnapshotJpaRepository,
+      BattleVoteJpaRepository battleVoteJpaRepository,
       EconomyWalletService economyWalletService,
       OutboxEventStore outboxEventStore,
       BettingPolicyProperties bettingPolicyProperties) {
@@ -90,6 +93,7 @@ public class BettingService {
     this.specimenRatingJpaRepository = specimenRatingJpaRepository;
     this.specimenJpaRepository = specimenJpaRepository;
     this.eloDailySnapshotJpaRepository = eloDailySnapshotJpaRepository;
+    this.battleVoteJpaRepository = battleVoteJpaRepository;
     this.economyWalletService = economyWalletService;
     this.outboxEventStore = outboxEventStore;
     this.bettingPolicyProperties = bettingPolicyProperties;
@@ -133,6 +137,9 @@ public class BettingService {
                 () -> BettingExceptions.specimenNotFound(BettingConstants.Message.SPECIMEN_NOT_FOUND));
     if (rating.getIpoStatus() != ArenaIpoStatus.IPO) {
       throw BettingExceptions.ipoLocked(BettingConstants.Message.BET_IPO_LOCKED);
+    }
+    if (!hasUserVotedForSpecimenInTradingDay(userId, specimenId, tradingDay)) {
+      throw BettingExceptions.voteRequired(BettingConstants.Message.BET_VOTE_REQUIRED);
     }
 
     BetPoolJpaEntity pool =
@@ -348,7 +355,12 @@ public class BettingService {
 
   @Transactional
   public BetSummaryView getBetSummary(String specimenId) {
-    return getBetSummary(specimenId, Instant.now());
+    return getBetSummary(specimenId, null, Instant.now());
+  }
+
+  @Transactional
+  public BetSummaryView getBetSummary(String specimenId, String userId) {
+    return getBetSummary(specimenId, userId, Instant.now());
   }
 
   /**
@@ -790,7 +802,7 @@ public class BettingService {
         tradingDay, status.name(), isForceSettleCandidatePoolStatus(status));
   }
 
-  BetSummaryView getBetSummary(String specimenId, Instant now) {
+  BetSummaryView getBetSummary(String specimenId, String userId, Instant now) {
     String normalizedSpecimenId = specimenId.trim();
     LocalDate tradingDay = ArenaTradingDayResolver.currentTradingDay(now);
 
@@ -819,7 +831,15 @@ public class BettingService {
             .map(EloDailySnapshotJpaEntity::getGlobalCorrection)
             .orElse(0);
 
-    return buildSummary(normalizedSpecimenId, tradingDay, rating, poolOpt.orElse(null), totalBettors, correctionToday);
+    return buildSummary(
+        normalizedSpecimenId,
+        tradingDay,
+        rating,
+        poolOpt.orElse(null),
+        totalBettors,
+        correctionToday,
+        userId,
+        now);
   }
 
   private BetPoolJpaEntity lazyCreatePool(String specimenId, LocalDate tradingDay) {
@@ -904,7 +924,11 @@ public class BettingService {
       SpecimenRatingJpaEntity rating,
       BetPoolJpaEntity pool,
       long totalBettors,
-      int correctionToday) {
+      int correctionToday,
+      String userId,
+      Instant now) {
+    BetEligibility eligibility =
+        evaluateBetEligibility(userId, specimenId, tradingDay, rating, pool, now);
     if (pool == null) {
       return new BetSummaryView(
           specimenId,
@@ -928,7 +952,10 @@ public class BettingService {
           rating.getEloOpenToday(),
           rating.getEloScore() - rating.getEloOpenToday(),
           correctionToday,
-          resolveMoonDoomThreshold(rating));
+          resolveMoonDoomThreshold(rating),
+          eligibility.canBet(),
+          eligibility.blockReasonCode(),
+          eligibility.hasVotedForSpecimenToday());
     }
 
     return new BetSummaryView(
@@ -953,7 +980,59 @@ public class BettingService {
         rating.getEloOpenToday(),
         rating.getEloScore() - rating.getEloOpenToday(),
         correctionToday,
-        resolveMoonDoomThreshold(rating));
+        resolveMoonDoomThreshold(rating),
+        eligibility.canBet(),
+        eligibility.blockReasonCode(),
+        eligibility.hasVotedForSpecimenToday());
+  }
+
+  private BetEligibility evaluateBetEligibility(
+      String userId,
+      String specimenId,
+      LocalDate tradingDay,
+      SpecimenRatingJpaEntity rating,
+      BetPoolJpaEntity pool,
+      Instant now) {
+    if (!StringUtils.hasText(userId)) {
+      return new BetEligibility(false, BettingConstants.BetBlockReason.AUTH_REQUIRED, false);
+    }
+
+    boolean hasVotedForSpecimenToday =
+        hasUserVotedForSpecimenInTradingDay(userId.trim(), specimenId, tradingDay);
+    if (!hasVotedForSpecimenToday) {
+      return new BetEligibility(false, BettingConstants.BetBlockReason.VOTE_REQUIRED, false);
+    }
+
+    if (rating.getIpoStatus() != ArenaIpoStatus.IPO) {
+      return new BetEligibility(false, BettingConstants.BetBlockReason.IPO_LOCKED, true);
+    }
+
+    if (pool == null) {
+      return new BetEligibility(false, BettingConstants.BetBlockReason.POOL_NOT_AVAILABLE, true);
+    }
+
+    if (pool.getStatus() != BetPoolStatus.OPEN) {
+      return new BetEligibility(false, BettingConstants.BetBlockReason.POOL_NOT_OPEN, true);
+    }
+
+    if (!now.isBefore(pool.getBetCutoffAt())) {
+      return new BetEligibility(false, BettingConstants.BetBlockReason.CUTOFF_PASSED, true);
+    }
+
+    return new BetEligibility(true, null, true);
+  }
+
+  private boolean hasUserVotedForSpecimenInTradingDay(
+      String userId, String specimenId, LocalDate tradingDay) {
+    if (!StringUtils.hasText(userId) || !StringUtils.hasText(specimenId) || tradingDay == null) {
+      return false;
+    }
+
+    Instant fromInclusive = ArenaTradingDayResolver.tradingDayStart(tradingDay);
+    Instant toExclusive = ArenaTradingDayResolver.nextTradingDayStart(tradingDay);
+    return battleVoteJpaRepository.countUserVotesForSpecimenBetween(
+            userId.trim(), specimenId.trim(), fromInclusive, toExclusive)
+        > 0L;
   }
 
   private Map<String, String> loadSpecimenTitles(List<BetOrderJpaEntity> orders) {
@@ -1599,7 +1678,12 @@ public class BettingService {
       int eloOpenToday,
       int deltaRSoFar,
       int correctionToday,
-      int moonDoomThreshold) {}
+      int moonDoomThreshold,
+      boolean canBet,
+      String betBlockReasonCode,
+      boolean hasVotedForSpecimenToday) {}
+
+  private record BetEligibility(boolean canBet, String blockReasonCode, boolean hasVotedForSpecimenToday) {}
 
   /** Outcome of one {@code IpoCompletedEvent} consumption attempt in betting domain. */
   public record IpoPoolInitResult(LocalDate tradingDay, boolean created, String outcome) {}

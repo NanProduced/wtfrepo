@@ -21,12 +21,26 @@ public final class BettingConstants {
     public static final String BET_IPO_LOCKED = "Specimen is not open for betting";
     public static final String BET_CUTOFF_PASSED = "Bet cutoff time has passed";
     public static final String BET_POOL_NOT_AVAILABLE = "Bet pool is not available";
+    public static final String BET_VOTE_REQUIRED =
+        "Vote on this specimen in Arena before betting";
     public static final String IDEMPOTENCY_CONFLICT =
         "Idempotency key already exists with different request payload";
     public static final String INSUFFICIENT_BUG = "Insufficient bug balance";
     public static final String SPECIMEN_NOT_FOUND = "Specimen not found";
 
     private Message() {}
+  }
+
+  public static final class BetBlockReason {
+
+    public static final String AUTH_REQUIRED = "AUTH_REQUIRED";
+    public static final String VOTE_REQUIRED = "VOTE_REQUIRED";
+    public static final String IPO_LOCKED = "IPO_LOCKED";
+    public static final String POOL_NOT_AVAILABLE = "POOL_NOT_AVAILABLE";
+    public static final String POOL_NOT_OPEN = "POOL_NOT_OPEN";
+    public static final String CUTOFF_PASSED = "CUTOFF_PASSED";
+
+    private BetBlockReason() {}
   }
 
   public static final class RefType {

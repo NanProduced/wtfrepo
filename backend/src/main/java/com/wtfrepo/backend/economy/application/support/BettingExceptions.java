@@ -33,6 +33,10 @@ public final class BettingExceptions {
     return new ApiException(ErrorCode.BET_POOL_NOT_AVAILABLE, HttpStatus.FORBIDDEN, message);
   }
 
+  public static ApiException voteRequired(String message) {
+    return new ApiException(ErrorCode.FORBIDDEN, HttpStatus.FORBIDDEN, message);
+  }
+
   public static ApiException insufficientBug(String message) {
     return new ApiException(ErrorCode.INSUFFICIENT_BUG, HttpStatus.PAYMENT_REQUIRED, message);
   }

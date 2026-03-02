@@ -23,6 +23,9 @@ public interface BattleVoteJpaRepository extends JpaRepository<BattleVoteJpaEnti
 
   Optional<BattleVoteJpaEntity> findByBattleIdAndVoterId(String battleId, String voterId);
 
+  long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+      Instant fromInclusive, Instant toExclusive);
+
   @Query(
       """
       select count(vote)
@@ -48,6 +51,21 @@ public interface BattleVoteJpaRepository extends JpaRepository<BattleVoteJpaEnti
   long countVotesForSpecimenAndWinnerBetween(
       @Param("specimenId") String specimenId,
       @Param("winner") ArenaVoteWinner winner,
+      @Param("fromInclusive") Instant fromInclusive,
+      @Param("toExclusive") Instant toExclusive);
+
+  @Query(
+      """
+      select count(vote)
+      from BattleVoteJpaEntity vote
+      where vote.voterId = :voterId
+        and vote.createdAt >= :fromInclusive
+        and vote.createdAt < :toExclusive
+        and (vote.leftSpecimenId = :specimenId or vote.rightSpecimenId = :specimenId)
+      """)
+  long countUserVotesForSpecimenBetween(
+      @Param("voterId") String voterId,
+      @Param("specimenId") String specimenId,
       @Param("fromInclusive") Instant fromInclusive,
       @Param("toExclusive") Instant toExclusive);
 

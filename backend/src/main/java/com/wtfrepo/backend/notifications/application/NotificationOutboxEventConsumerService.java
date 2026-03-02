@@ -43,8 +43,8 @@ public class NotificationOutboxEventConsumerService {
   private static final String DEFAULT_ACHIEVEMENT_NAME = "隐藏成就";
   private static final String ACHIEVEMENT_TITLE = "你解锁了新成就";
   private static final String ACHIEVEMENT_DEDUPE_PREFIX = "achievement_";
-  private static final String PROFILE_ACHIEVEMENTS_PREFIX = "/profile/achievements#";
-  private static final String PROFILE_FALLBACK_URL = "/profile";
+  private static final String PROFILE_ACHIEVEMENTS_PREFIX = "/me/achievements#";
+  private static final String PROFILE_FALLBACK_URL = "/me";
   private static final String AGG_KEY_PREFIX = "notify:agg:";
   private static final String AGG_KEY_SUFFIX = ":RESONATED";
 

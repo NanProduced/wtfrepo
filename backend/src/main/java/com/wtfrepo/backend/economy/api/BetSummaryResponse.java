@@ -27,7 +27,10 @@ public record BetSummaryResponse(
     int eloOpenToday,
     int deltaRSoFar,
     int correctionToday,
-    int moonDoomThreshold) {
+    int moonDoomThreshold,
+    boolean canBet,
+    String betBlockReasonCode,
+    boolean hasVotedForSpecimenToday) {
 
   static BetSummaryResponse from(BettingService.BetSummaryView value) {
     return new BetSummaryResponse(
@@ -52,6 +55,9 @@ public record BetSummaryResponse(
         value.eloOpenToday(),
         value.deltaRSoFar(),
         value.correctionToday(),
-        value.moonDoomThreshold());
+        value.moonDoomThreshold(),
+        value.canBet(),
+        value.betBlockReasonCode(),
+        value.hasVotedForSpecimenToday());
   }
 }

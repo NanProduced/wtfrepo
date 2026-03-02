@@ -12,10 +12,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import com.wtfrepo.backend.arena.domain.ArenaIpoStatus;
 import com.wtfrepo.backend.arena.infra.persistence.entity.EloDailySnapshotJpaEntity;
 import com.wtfrepo.backend.arena.infra.persistence.entity.SpecimenRatingJpaEntity;
+import com.wtfrepo.backend.arena.infra.persistence.repository.BattleVoteJpaRepository;
 import com.wtfrepo.backend.arena.infra.persistence.repository.EloDailySnapshotJpaRepository;
 import com.wtfrepo.backend.arena.infra.persistence.repository.SpecimenRatingJpaRepository;
 import com.wtfrepo.backend.economy.application.support.BettingPolicyProperties;
@@ -53,6 +55,7 @@ class BettingServiceTest {
   @Mock private SpecimenRatingJpaRepository specimenRatingJpaRepository;
   @Mock private SpecimenJpaRepository specimenJpaRepository;
   @Mock private EloDailySnapshotJpaRepository eloDailySnapshotJpaRepository;
+  @Mock private BattleVoteJpaRepository battleVoteJpaRepository;
   @Mock private EconomyWalletService economyWalletService;
   @Mock private OutboxEventStore outboxEventStore;
 
@@ -68,9 +71,15 @@ class BettingServiceTest {
             specimenRatingJpaRepository,
             specimenJpaRepository,
             eloDailySnapshotJpaRepository,
+            battleVoteJpaRepository,
             economyWalletService,
             outboxEventStore,
             new BettingPolicyProperties());
+    lenient()
+        .when(
+            battleVoteJpaRepository.countUserVotesForSpecimenBetween(
+                any(), any(), any(), any()))
+        .thenReturn(1L);
   }
 
   @Test
@@ -105,6 +114,31 @@ class BettingServiceTest {
         .isInstanceOf(ApiException.class)
         .extracting(ex -> ((ApiException) ex).getErrorCode())
         .isEqualTo(ErrorCode.BET_IPO_LOCKED);
+  }
+
+  @Test
+  void placeBet_shouldRejectWhenUserHasNotVotedForSpecimenInTradingDay() {
+    Instant now = Instant.parse("2026-02-12T12:00:00Z");
+    SpecimenRatingJpaEntity rating = createIpoRating("sp_1");
+
+    when(betOrderJpaRepository.findByIdempotencyKey("idem-no-vote")).thenReturn(Optional.empty());
+    when(specimenRatingJpaRepository.findById("sp_1")).thenReturn(Optional.of(rating));
+    when(battleVoteJpaRepository.countUserVotesForSpecimenBetween(any(), any(), any(), any()))
+        .thenReturn(0L);
+
+    assertThatThrownBy(
+            () ->
+                bettingService.placeBet(
+                    "req-no-vote",
+                    "usr_1",
+                    "idem-no-vote",
+                    new BettingService.PlaceBetCommand("sp_1", "UP", 200),
+                    now))
+        .isInstanceOf(ApiException.class)
+        .extracting(ex -> ((ApiException) ex).getErrorCode())
+        .isEqualTo(ErrorCode.FORBIDDEN);
+
+    verifyNoInteractions(economyWalletService);
   }
 
   @Test
@@ -486,7 +520,7 @@ class BettingServiceTest {
     when(eloDailySnapshotJpaRepository.findBySpecimenIdAndDate("sp_2", tradingDay))
         .thenReturn(Optional.empty());
 
-    BettingService.BetSummaryView summary = bettingService.getBetSummary("sp_2", now);
+    BettingService.BetSummaryView summary = bettingService.getBetSummary("sp_2", "usr_1", now);
 
     assertThat(summary.poolStatus()).isEqualTo("OPEN");
     assertThat(summary.houseUp()).isEqualTo(800L);
