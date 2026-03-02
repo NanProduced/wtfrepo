@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Star } from "lucide-react";
 import { useNarratorStore } from "@/shared/store/narrator";
 import { ArenaSpecimen } from "@/shared/types/arena";
 import {
@@ -21,9 +20,13 @@ export function SpecimenCard({ specimen, side, onInspect, isHighlighted = false 
   const isLeft = side === "left";
   const accentText = isLeft ? "text-primary" : "text-violet-500";
   const borderClass = isLeft ? "border-primary" : "border-violet-500";
-  const [owner, name] = specimen.repoFullName.split("/");
-  const primaryLanguage = specimen.githubMeta.languages[0]?.name || "Unknown";
-  const stars = specimen.githubMeta.stargazersCount;
+  const [owner, name] = specimen.title.includes("/")
+    ? specimen.title.split("/", 2)
+    : ["", specimen.title];
+  const diagnosisPreview =
+    specimen.diagnosisTags.length > 0
+      ? specimen.diagnosisTags.slice(0, 4).join(", ")
+      : "No diagnosis tags yet.";
 
   const triggerNarrator = useNarratorStore((state) => state.trigger);
   const inspectTriggerKeys = isLeft
@@ -68,7 +71,7 @@ export function SpecimenCard({ specimen, side, onInspect, isHighlighted = false 
                   buildNarratorTrigger(inspectTriggerKeys.click, {
                     context: {
                       side,
-                      repo: specimen.repoFullName,
+                      repo: specimen.title,
                     },
                   })
                 );
@@ -79,7 +82,7 @@ export function SpecimenCard({ specimen, side, onInspect, isHighlighted = false 
                   buildNarratorTrigger(inspectTriggerKeys.hover, {
                     context: {
                       side,
-                      repo: specimen.repoFullName,
+                      repo: specimen.title,
                     },
                   })
                 )
@@ -102,18 +105,22 @@ export function SpecimenCard({ specimen, side, onInspect, isHighlighted = false 
              <div className="flex items-start justify-between">
                 <div>
                    <h2 className="font-pixel text-lg md:text-xl leading-tight text-foreground">
-                     {owner}/<br/>
-                     <span className={accentText}>{name}</span>
+                     {owner ? (
+                       <>
+                         {owner}/<br />
+                         <span className={accentText}>{name}</span>
+                       </>
+                     ) : (
+                       <span className={accentText}>{name}</span>
+                     )}
                    </h2>
                 </div>
                 <div className={cn(
                   "flex flex-col items-end font-mono text-xs border-l-2 pl-3",
                   borderClass
                 )}>
-                   <span className="flex items-center gap-1">
-                     <Star className="w-3 h-3 fill-current" /> {stars}
-                   </span>
-                   <span className="opacity-70">{primaryLanguage}</span>
+                   <span>Elo {specimen.elo}</span>
+                   <span className="opacity-70">Matches {specimen.matchesPlayed}</span>
                 </div>
              </div>
            </div>
@@ -121,17 +128,22 @@ export function SpecimenCard({ specimen, side, onInspect, isHighlighted = false 
            {/* Description Box */}
            <div className="relative z-10 border-l-4 border-muted pl-4 py-1">
              <p className="font-mono text-sm md:text-base text-muted-foreground leading-relaxed">
-               {specimen.oneLiner}
+               {specimen.tagline}
              </p>
            </div>
 
-           {/* Terminal Output (README) */}
+           {/* Terminal Output */}
            <div className="relative z-10 flex-1 bg-black/50 border border-border p-3 font-mono text-xs text-green-500/90 overflow-hidden">
-              <div className="absolute top-0 right-0 p-1 bg-border text-[8px] text-background font-bold px-2">README.MD</div>
+              <div className="absolute top-0 right-0 p-1 bg-border text-[8px] text-background font-bold px-2">Diagnosis notes</div>
               <div className="h-full overflow-y-auto pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(217,70,239,0.5)_transparent]">
                 <div className="opacity-80 leading-relaxed font-thin whitespace-pre-wrap pb-4">
-                  <span className="text-pink-500 mr-2">$</span>cat README.md<br/>
-                  {specimen.readmePreview}
+                  <span className="text-pink-500 mr-2">$</span>profile summary
+                  <br />
+                  species: {specimen.species}
+                  <br />
+                  ipo status: {specimen.ipoStatus}
+                  <br />
+                  diagnosis tags: {diagnosisPreview}
                   <motion.span
                     animate={{ opacity: [0, 1, 0] }}
                     transition={{ duration: 0.8, repeat: Infinity }}

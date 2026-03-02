@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { env } from "@/shared/config/env";
 import { buildNarratorTrigger } from "@/shared/config/narrator-events";
 import { useNarratorStore } from "@/shared/store/narrator";
+import { useNotificationStore } from "@/shared/store/notifications";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -53,6 +54,7 @@ function toNarratorContext(payload: JsonRecord) {
 export function NarratorStreamBridge() {
   const { status } = useSession();
   const triggerNarrator = useNarratorStore((state) => state.trigger);
+  const ingestPagerEvent = useNotificationStore((state) => state.ingestPagerEvent);
 
   useEffect(() => {
     const channels = status === "authenticated" ? "narrator,pager" : "narrator";
@@ -81,6 +83,25 @@ export function NarratorStreamBridge() {
     };
 
     const onPager = (event: MessageEvent<string>) => {
+      try {
+        const payload = JSON.parse(event.data) as JsonRecord;
+        ingestPagerEvent({
+          channel: typeof payload.channel === "string" ? payload.channel : undefined,
+          type: typeof payload.type === "string" ? payload.type : undefined,
+          notificationUid:
+            typeof payload.notificationUid === "string" ? payload.notificationUid : undefined,
+          title: typeof payload.title === "string" ? payload.title : undefined,
+          body: typeof payload.body === "string" ? payload.body : undefined,
+          targetUrl: typeof payload.targetUrl === "string" ? payload.targetUrl : undefined,
+          actorNickname:
+            typeof payload.actorNickname === "string" ? payload.actorNickname : undefined,
+          aggregateCount:
+            typeof payload.aggregateCount === "number" ? payload.aggregateCount : undefined,
+          createdAt: typeof payload.createdAt === "string" ? payload.createdAt : undefined,
+        });
+      } catch {
+        // ignore malformed payload for notifications
+      }
       handleNarratorPayload(event.data);
     };
 
@@ -91,7 +112,7 @@ export function NarratorStreamBridge() {
       stream.removeEventListener("pager", onPager as EventListener);
       stream.close();
     };
-  }, [status, triggerNarrator]);
+  }, [ingestPagerEvent, status, triggerNarrator]);
 
   return null;
 }

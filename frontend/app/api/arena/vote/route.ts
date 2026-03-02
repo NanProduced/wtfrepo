@@ -5,6 +5,25 @@ import { randomUUID } from "crypto";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const battleId = typeof body?.battleId === "string" ? body.battleId.trim() : "";
+    const winner =
+      typeof body?.winner === "string"
+        ? body.winner.trim()
+        : typeof body?.choice === "string"
+          ? body.choice.trim()
+          : "";
+
+    if (!battleId || !winner) {
+      return NextResponse.json(
+        {
+          error: "Bad Request",
+          code: "ARENA_VOTE_INVALID_PAYLOAD",
+          message: "battleId and winner are required",
+        },
+        { status: 400 }
+      );
+    }
+
     const idempotencyKey = body.idempotencyKey || `idem-${randomUUID()}`;
     const requestId = `req-${randomUUID()}`;
 
@@ -15,8 +34,8 @@ export async function POST(request: Request) {
         "X-Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify({
-        ...body,
-        idempotencyKey,
+        battleId,
+        winner,
       }),
     });
 

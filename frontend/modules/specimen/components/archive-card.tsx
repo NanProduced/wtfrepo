@@ -10,13 +10,15 @@ import { useLocale, useTranslations } from "next-intl";
 
 interface ArchiveCardProps {
   specimen: ArchiveSpecimen;
+  eloRank?: number;
+  hypeRank?: number;
 }
 
 /**
  * ArchiveCard - Neo-Brutalist Edition
  * Display a specimen in the Archive list.
  */
-export function ArchiveCard({ specimen }: ArchiveCardProps) {
+export function ArchiveCard({ specimen, eloRank, hypeRank }: ArchiveCardProps) {
   const { githubMeta, metrics, tags } = specimen;
   const locale = useLocale();
   const t = useTranslations("archive.card");
@@ -69,6 +71,18 @@ export function ArchiveCard({ specimen }: ArchiveCardProps) {
               <span className="font-mono text-xs font-bold text-primary">
                 {metrics.elo}
               </span>
+            </div>
+            <div className="mt-2 flex flex-wrap justify-end gap-1">
+              {typeof eloRank === "number" && (
+                <span className="rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                  {t("rank_elo", { rank: eloRank })}
+                </span>
+              )}
+              {typeof hypeRank === "number" && (
+                <span className="rounded border border-orange-400/40 bg-orange-500/10 px-1.5 py-0.5 font-mono text-[10px] text-orange-300">
+                  {t("rank_hype", { rank: hypeRank })}
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -23,8 +23,8 @@ export async function submitArenaVote(payload: ArenaVotePayload) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      ...payload,
-      clientTs: payload.clientTs || new Date().toISOString(),
+      battleId: payload.battleId,
+      winner: payload.winner,
       idempotencyKey: payload.idempotencyKey || crypto.randomUUID(),
     }),
   });

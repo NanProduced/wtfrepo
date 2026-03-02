@@ -29,6 +29,18 @@ const DEFAULT_IDENTITY_PROOF_ISSUER = "wtf-repo-bff";
 const DEFAULT_IDENTITY_PROOF_AUDIENCE = "wtf-repo-backend-auth-exchange";
 const DEFAULT_IDENTITY_PROOF_SECRET = "change-this-identity-proof-secret-change-this";
 const DEFAULT_IDENTITY_PROOF_TTL_SECONDS = 120;
+const ENABLE_AUTH_EXCHANGE_MOCK_FALLBACK = resolveBooleanEnv(
+  "AUTH_ENABLE_EXCHANGE_MOCK_FALLBACK",
+  false
+);
+
+function resolveBooleanEnv(name: string, defaultValue: boolean): boolean {
+  const value = process.env[name];
+  if (!value) {
+    return defaultValue;
+  }
+  return value.toLowerCase() === "true" || value === "1";
+}
 
 function resolveBackendProvider(provider: string): BackendOAuthProvider {
   if (provider === "github") {
@@ -118,8 +130,8 @@ async function exchangeTokenWithBackend(
     const data = await res.json();
     return data as BackendAuthResponse;
   } catch (error) {
-    // Fallback for Mock/Dev if Backend is unreachable
-    if (process.env.NODE_ENV === "development") {
+    // Explicit fallback for local mock sessions. Keep disabled by default to expose integration failures.
+    if (process.env.NODE_ENV !== "production" && ENABLE_AUTH_EXCHANGE_MOCK_FALLBACK) {
       console.warn("[BFF] Backend unreachable, falling back to Mock Data");
       return mockExchangeToken(provider);
     }
@@ -207,6 +219,9 @@ export const authConfig = {
             roles: ["USER"],
             bugBalance: 999
           };
+          if (process.env.NODE_ENV === "development") {
+            token.backendAccessToken = `mock_backend_jwt_${Date.now()}`;
+          }
         }
       }
       return token;

@@ -1,46 +1,52 @@
-import { GitHubLanguage, SpecimenMetrics, SpecimenTag } from "@/shared/types/specimen";
-
 export type ArenaVoteChoice = "LEFT" | "RIGHT" | "BOTH_BAD";
-
-export interface ArenaSpecimenGitHubMeta {
-  repoHtmlUrl: string;
-  ownerLogin: string;
-  ownerAvatarUrl: string;
-  languages: GitHubLanguage[];
-  stargazersCount: number;
-  pushedAt: string;
-}
 
 export interface ArenaSpecimen {
   specimenId: string;
-  repoFullName: string;
-  oneLiner: string;
-  readmePreview: string;
-  githubMeta: ArenaSpecimenGitHubMeta;
-  metrics: Pick<SpecimenMetrics, "elo" | "hype" | "votes">;
-  tags: SpecimenTag[];
+  title: string;
+  tagline: string;
+  species: string;
+  diagnosisTags: string[];
+  elo: number;
+  matchesPlayed: number;
+  ipoStatus: string;
+  thumbnailUrl: string | null;
+}
+
+export interface ArenaDuelMatchMeta {
+  matchType: string;
+  matchProfileVersion: string;
+  isIpoMatch: boolean;
+}
+
+export interface ArenaDuelWallet {
+  balance: number;
+  voteCost: number;
 }
 
 export interface ArenaDuelResponse {
   battleId: string;
   left: ArenaSpecimen;
   right: ArenaSpecimen;
-  userBugBalance: number | null;
-  participantCount?: number;
-  round?: number;
+  matchMeta: ArenaDuelMatchMeta;
+  shouldResetExcludeSet: boolean;
+  wallet: ArenaDuelWallet | null;
 }
 
 export interface ArenaVotePayload {
   battleId: string;
-  choice: ArenaVoteChoice;
-  clientTs?: string;
+  winner: ArenaVoteChoice;
   idempotencyKey?: string;
 }
 
 export interface ArenaVoteResponse {
   battleId: string;
-  choice: ArenaVoteChoice;
+  winner: ArenaVoteChoice;
   leftDelta: number;
   rightDelta: number;
-  newBugBalance: number | null;
+  leftEloAfter: number;
+  rightEloAfter: number;
+  leftPhase: string;
+  rightPhase: string;
+  bugCost: number;
+  walletBalanceAfter: number;
 }

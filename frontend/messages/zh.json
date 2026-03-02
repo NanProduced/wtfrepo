@@ -39,8 +39,9 @@
       "loading_duel": "正在加载对局...",
       "arena_offline": "竞技场离线",
       "retry": "重试",
-      "round": "第 {round} 轮",
-      "doctors_online": "在线诊断师 {count} 人",
+      "match_type": "对决类型 {type}",
+      "wallet_status": "余额 {balance} · 消耗 {voteCost}",
+      "guest_mode": "游客预览模式",
       "action": {
         "diagnose_a": "确诊 A",
         "both_bad": "两边都不行",
@@ -249,20 +250,33 @@
       },
       "section": {
         "market_pulse": "市场脉冲",
+        "market_access": "交易入口状态",
         "official_commentary": "官方点评",
+        "technical_dossier": "技术档案",
         "readme_excerpts": "Readme 摘录",
         "code_highlights": "代码高光",
-        "comments_preview": "评论区（M05 预览）"
+        "comments": "评论区",
+        "betting": "下注市场"
       },
       "market": {
         "trend_intraday": "Elo 走势（当日）",
+        "source_live": "实时历史",
+        "source_unavailable": "暂无历史数据",
         "max": "最高：{value}",
         "min": "最低：{value}",
-        "fallback_note": "优先使用 `eloHistory`。历史接口未就绪时会使用生成曲线保持布局稳定。"
+        "start": "起点：{value}",
+        "end": "终点：{value}",
+        "delta": "变化：{value}",
+        "live_note": "当前走势使用后端 `eloHistory` 时间线数据。",
+        "unavailable_note": "当前样本暂无可用历史走势，请等待每日快照产出后查看。"
       },
       "commentary": {
         "diagnosis_label": "诊断结论",
         "arena_reason_label": "入场理由"
+      },
+      "dossier": {
+        "readme_excerpts": "Readme 摘录",
+        "code_highlights": "代码高光"
       },
       "readme": {
         "excerpt_types": {
@@ -276,17 +290,67 @@
         "empty": "暂未整理代码证据片段。"
       },
       "comments": {
-        "intro": "评论能力依赖后端接口。这个区块作为 M05 预留，包含置顶吐槽、身份徽章和线程化列表布局。",
-        "top_roast_label": "置顶吐槽（缓存）",
-        "top_roast_pending": "暂不可用。M05 将接入 `specimen_top_roast_cache`。",
-        "identity_badges_label": "身份徽章已就绪",
-        "identity_badges_desc": "Owner 与 contributor 身份已可用于未来评论徽章渲染。",
-        "owner": "Owner",
-        "contributor": "Contributor",
-        "composer_label": "评论输入区（预览）",
-        "composer_placeholder": "[M05] 评论输入、频控提示与身份徽章预览。",
-        "mock_user": "用户_{index}",
-        "stream_placeholder": "M05 评论流占位卡片。"
+        "top_roast_label": "置顶吐槽",
+        "top_roast_empty": "暂无置顶吐槽，快来第一个共鸣。",
+        "anonymous": "匿名用户",
+        "badge": {
+          "owner": "Owner",
+          "contributor": "Contributor"
+        },
+        "resonance_count": "共鸣 {count}",
+        "composer_label": "发布评论",
+        "composer_placeholder": "写下你对这个样本的诊断意见...",
+        "composer_limit": "{count}/4000",
+        "composer_submit": "发布评论",
+        "composer_submitting": "发布中...",
+        "sort_label": "排序方式",
+        "sort": {
+          "hot": "最热",
+          "new": "最新"
+        },
+        "loading": "正在加载评论...",
+        "loading_more": "正在加载更多...",
+        "load_more": "加载更多评论",
+        "empty": "暂无评论。",
+        "status": {
+          "active": "可见",
+          "pending_review": "待审核",
+          "blocked": "已屏蔽",
+          "deleted": "已删除"
+        },
+        "resonate": "共鸣",
+        "report": "举报",
+        "report_dialog": {
+          "close": "关闭弹窗",
+          "title": "举报评论",
+          "description": "请选择举报原因，可选填写补充说明。提交后不可撤回。",
+          "reason_label": "举报原因",
+          "message_label": "补充说明（可选）",
+          "message_placeholder": "补充一些上下文，便于审核...",
+          "cancel": "取消",
+          "submit": "提交举报",
+          "submitting": "提交中..."
+        },
+        "report_reason": {
+          "spam": "垃圾信息",
+          "hate": "仇恨言论",
+          "porn": "色情内容",
+          "political": "政治内容",
+          "copyright": "版权问题",
+          "other": "其他"
+        },
+        "toast": {
+          "load_failed": "评论加载失败。",
+          "load_more_failed": "加载更多评论失败。",
+          "content_required": "评论内容不能为空。",
+          "publish_success": "评论发布成功。",
+          "publish_failed": "评论发布失败。",
+          "resonance_success": "已记录共鸣。",
+          "resonance_canceled": "已取消共鸣。",
+          "resonance_failed": "共鸣更新失败。",
+          "report_success": "举报已提交。",
+          "report_failed": "举报提交失败。"
+        }
       },
       "sidebar": {
         "global_ranking": "全局排行（Elo）",
@@ -295,6 +359,7 @@
         "hype": "热度",
         "votes": "投票",
         "comments": "评论",
+        "repository_profile": "仓库档案",
         "repository_meta": "仓库元信息",
         "timeline": "时间线",
         "repo_identity": "仓库身份",
@@ -307,6 +372,7 @@
         "homepage": "主页",
         "homepage_available": "可用",
         "open_issues": "开放 issue",
+        "last_push": "最后推送",
         "metadata_synced": "元信息同步时间"
       },
       "timeline": {
@@ -317,7 +383,9 @@
         "relative_time_note": "相对时间使用本地化格式显示。"
       },
       "identity": {
-        "owner": "Owner",
+        "owner": "仓库所有者",
+        "owner_user_id": "用户 ID：{id}",
+        "contributor_note": "贡献者身份会在评论内容中内联展示。",
         "contributors": "Contributors（{count}）",
         "no_contributors": "暂无同步的贡献者身份。"
       },
@@ -328,7 +396,80 @@
       },
       "contract": {
         "official_commentary": "已支持 `officialCommentary + excerpts + codeHighlights` 契约路径。",
-        "comments_placeholder": "M05 评论能力可以无布局改动接入该区域。"
+        "comments_placeholder": "评论区已接入 M05 接口链路。"
+      },
+      "bet_access": {
+        "loading": "正在加载交易入口状态...",
+        "empty": "当前无法获取交易入口状态。",
+        "eligible_title": "已满足下注资格",
+        "eligible_desc": "请返回 Arena 流程进行下注操作。",
+        "blocked_title": "当前下注受门禁限制",
+        "odds_up": "上涨赔率：{value}",
+        "odds_flat": "横盘赔率：{value}",
+        "odds_down": "下跌赔率：{value}",
+        "pool_up": "上涨奖池：{value}",
+        "pool_flat": "横盘奖池：{value}",
+        "pool_down": "下跌奖池：{value}",
+        "note": "详情页仅展示交易资格状态，盘口细节请在 Arena 查看。",
+        "go_arena": "前往 Arena 流程"
+      },
+      "betting": {
+        "loading": "正在加载下注市场...",
+        "empty": "当前样本暂无可用下注市场。",
+        "trading_day": "交易日：{date}",
+        "cutoff": "截止时间：{time}",
+        "cutoff_unavailable": "当前交易日暂无可下注奖池。",
+        "status": {
+          "open": "开放中",
+          "closed": "已封盘",
+          "settled": "已结算",
+          "unavailable": "不可用"
+        },
+        "gate": {
+          "blocked": "当前样本暂不可下注。",
+          "auth_required": "请先登录，并在 Arena 完成投票后再下注。",
+          "vote_required": "请先在 Arena 对该样本完成投票，再进行下注。",
+          "ipo_locked": "该样本当前不在可下注阶段。",
+          "pool_unavailable": "当前交易日暂无可下注奖池。",
+          "pool_closed": "当前奖池已封盘或已结算。",
+          "cutoff_passed": "当前交易日下注截止时间已过。"
+        },
+        "direction": {
+          "up": "今日上涨",
+          "flat": "今日横盘",
+          "down": "今日下跌"
+        },
+        "odds": "赔率 {value}",
+        "pool": "奖池 {value}",
+        "amount_label": "下注金额（Bug）",
+        "amount_min_hint": "最小下注金额为 100 Bug。",
+        "placing": "下注中...",
+        "place_button": "押注 {direction}",
+        "total_bettors": "下注人数：{value}",
+        "rake_rate": "抽水比例：{value}%",
+        "ipo_status": "IPO 状态：{value}",
+        "delta_r": "当前 ΔR：{value}",
+        "current_elo": "当前 Elo：{value}",
+        "moon_doom_threshold": "Moon/Doom 阈值：{value}",
+        "latest_order": {
+          "title": "最近一笔下注",
+          "order_id": "订单号：{orderId}",
+          "amount": "金额 {value}",
+          "odds": "赔率 {value}"
+        },
+        "active_orders": {
+          "title": "该样本我的活跃仓位",
+          "empty": "该样本暂无活跃仓位。",
+          "amount": "押注 {value}",
+          "current_odds": "当前赔率 {value}"
+        },
+        "note": "奖池与赔率均由 M03 betting 接口返回；写入路径受后端幂等和截止时间门禁保护。",
+        "toast": {
+          "load_failed": "下注市场加载失败。",
+          "amount_invalid": "请输入有效的下注金额（最小 100 Bug）。",
+          "place_success": "下注成功：{amount} Bug。",
+          "place_failed": "下注失败。"
+        }
       }
     },
     "watchlist": {
@@ -369,12 +510,23 @@
       }
     },
     "wallet": {
-      "currency": "Bug"
+      "currency": "Bug",
+      "loading": "..."
+    },
+    "notifications": {
+      "trigger": "打开寻呼机",
+      "title": "寻呼机",
+      "mark_all": "全部已读",
+      "loading": "正在加载通知...",
+      "empty": "暂无通知。",
+      "view_all": "打开通知中心",
+      "auth_required": "登录后可查看寻呼机通知"
     },
     "menu": {
       "patient_id": "患者编号",
       "my_space": "我的空间",
       "my_achievements": "我的成就",
+      "my_notifications": "我的通知",
       "logout": "出院",
       "login": "入院"
     }
@@ -407,6 +559,49 @@
         "momentum_24h": "24 小时动量",
         "waiting": "等待数据中"
       },
+      "filters": {
+        "toggle": "切换筛选",
+        "title": "标签筛选",
+        "selected_count": "已选 {count} 项",
+        "clear": "清空",
+        "loading": "正在加载筛选维度...",
+        "empty": "暂无可用筛选维度。",
+        "active": "当前筛选",
+        "remove": "移除筛选标签",
+        "config_load_error": "加载筛选配置失败",
+        "config_load_error_fallback": "标签筛选配置暂不可用。"
+      },
+      "insights": {
+        "summary": {
+          "title": "快照总览",
+          "total_specimens": "已收录仓库",
+          "today_arena_battles": "今日对局数",
+          "average_elo": "平均 Elo",
+          "average_hype": "平均热度",
+          "total_votes": "累计投票"
+        },
+        "leaderboard": {
+          "title": "动态榜单",
+          "by_elo": "Elo 排名",
+          "by_hype": "热度排名",
+          "score": "分数 {value}",
+          "rank_delta_unknown": "暂无位次变化",
+          "rank_delta_up": "上升 {value}",
+          "rank_delta_down": "下降 {value}",
+          "rank_delta_flat": "位次不变",
+          "load_more": "查看更多",
+          "empty": "暂无榜单数据。"
+        },
+        "momentum": {
+          "title": "动量地图",
+          "rising": "上升",
+          "unchanged": "持平",
+          "falling": "下降",
+          "top_rising": "上涨位次",
+          "top_falling": "下跌位次",
+          "no_rank_delta": "暂无位次变化数据"
+        }
+      },
       "empty": "当前区域没有找到样本。",
       "load_more": "加载更多样本"
     },
@@ -414,7 +609,9 @@
       "log_label": "档案条目 {id}.log",
       "pending": "系统诊断尚未完成...",
       "stars": "星标",
-      "hype": "热度"
+      "hype": "热度",
+      "rank_elo": "Elo #{rank}",
+      "rank_hype": "热度 #{rank}"
     }
   },
   "me": {
@@ -426,6 +623,18 @@
       "fallback_name": "病友",
       "personal_center": "个人中心",
       "bug_balance": "Bug 余额",
+      "wallet_block": {
+        "balance": "余额",
+        "daily_available": "每日奖励可领取：{amount} Bug",
+        "daily_claimed": "今日奖励已领取",
+        "daily_claim": "领取每日奖励",
+        "daily_claiming": "领取中...",
+        "toast": {
+          "daily_success": "每日奖励领取成功：+{amount} Bug",
+          "daily_already_claimed": "今日奖励已领取。",
+          "daily_failed": "每日奖励领取失败。"
+        }
+      },
       "achievement_block": {
         "badge": "凭证",
         "title": "我的成就",
@@ -437,6 +646,91 @@
         "title": "账户资料",
         "description": "昵称和偏好管理将在这里逐步扩展。",
         "footnote": "账户控制功能采用迭代交付，避免阻塞核心玩法。"
+      },
+      "watchlist_block": {
+        "badge": "资产",
+        "title": "我的自选",
+        "description": "快速查看你标记关注的仓库。",
+        "added_at": "加入时间 {day}",
+        "elo": "Elo {value}",
+        "hype": "热度 {value}",
+        "empty": "暂无自选记录，可在病历库或详情页先添加。",
+        "cta": "前往病历库"
+      },
+      "notifications_block": {
+        "badge": "寻呼",
+        "title": "我的通知",
+        "description": "在一个页面查看提及、广播与解锁消息。",
+        "cta": "打开通知中心"
+      },
+      "betting_block": {
+        "badge": "下注",
+        "title": "我的下注",
+        "description": "查看活跃仓位、历史订单和日结结果。",
+        "cta": "打开下注台"
+      }
+    },
+    "betting": {
+      "meta": {
+        "title": "我的下注台",
+        "description": "查看活跃下注、历史记录和每日结算结果。"
+      },
+      "back": "返回个人中心",
+      "badge": "下注台",
+      "title": "我的下注",
+      "description": "在这里集中查看仓位与结算表现。",
+      "loading": "正在加载下注数据...",
+      "open_specimen": "打开样本",
+      "note": "当前页面接入 P1 betting 接口链路；小游戏相关经济链路仍为占位。",
+      "direction": {
+        "up": "今日上涨",
+        "flat": "今日横盘",
+        "down": "今日下跌"
+      },
+      "status": {
+        "pending": "待结算",
+        "won": "已中奖",
+        "lost": "未命中",
+        "cancelled": "已取消"
+      },
+      "cards": {
+        "active_orders": "活跃订单",
+        "total_staked": "今日总押注",
+        "won_orders": "命中订单"
+      },
+      "active": {
+        "title": "活跃仓位",
+        "trading_day": "交易日 {date}",
+        "empty": "暂无活跃仓位。",
+        "amount": "押注 {value}",
+        "current_odds": "当前赔率 {value}"
+      },
+      "history": {
+        "title": "历史订单",
+        "count": "已加载 {value} 条",
+        "empty": "暂无历史订单。",
+        "amount": "押注 {value}",
+        "payout": "结算 {value}",
+        "settled_at": "结算时间 {value}",
+        "loading_more": "加载中...",
+        "load_more": "加载更多历史"
+      },
+      "settlement": {
+        "title": "今日结算",
+        "date": "日期 {value}",
+        "empty": "暂无结算记录。",
+        "delta_r": "ΔR {value}",
+        "outcome": "结果 {value}",
+        "outcome_force_settled": "强制结算",
+        "outcome_unknown": "未知",
+        "orders": "我的订单 {value}",
+        "loading_more": "加载中...",
+        "load_more": "加载更多结算"
+      },
+      "toast": {
+        "load_failed": "下注概览加载失败。",
+        "history_more_failed": "历史记录加载失败。",
+        "settlement_more_failed": "结算记录加载失败。"
       }
     }
   },
@@ -486,8 +780,42 @@
       }
     }
   },
+  "notifications": {
+    "page": {
+      "meta": {
+        "title": "我的通知",
+        "description": "查看未读和历史寻呼消息。"
+      },
+      "back": "返回我的空间",
+      "title": "通知中心",
+      "description": "这里统一管理寻呼机通知，支持状态筛选与游标分页。",
+      "unread_count": "未读 {count}",
+      "filters": {
+        "all": "全部",
+        "unread": "未读",
+        "read": "已读"
+      },
+      "actions": {
+        "mark_all": "全部标记已读",
+        "load_more": "加载更多"
+      },
+      "state": {
+        "loading": "正在加载通知...",
+        "empty": "当前筛选下暂无通知。",
+        "error": "通知加载失败。"
+      }
+    }
+  },
   "ticker": {
     "label": "快讯",
-    "warming_up": "快讯频道预热中..."
+    "warming_up": "快讯频道预热中...",
+    "mobile": {
+      "open": "打开快讯",
+      "close": "关闭快讯",
+      "title": "最近快讯",
+      "subtitle": "病院公共频道最新播报。",
+      "empty": "暂无快讯内容。",
+      "just_now": "刚刚"
+    }
   }
 }

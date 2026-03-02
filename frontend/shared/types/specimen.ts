@@ -23,7 +23,7 @@ export interface GitHubMetaBase {
 }
 
 export interface GitHubMetaFull extends GitHubMetaBase {
-  repoId: string;
+  repoId: number;
   owner: {
     login: string;
     id: string;
@@ -72,6 +72,48 @@ export interface ArchiveSpecimen extends SpecimenBase {
   githubMeta: GitHubMetaBase;
   metrics: SpecimenMetrics;
   tags: SpecimenTag[];
+}
+
+export type ArchiveLeaderboardMetric = "ELO" | "HYPE";
+
+export interface ArchiveLeaderboardItem extends SpecimenBase {
+  rank: number;
+  rankDelta: number | null;
+  score: number;
+  metrics: SpecimenMetrics;
+}
+
+export interface ArchiveLeaderboardResponse {
+  metric: ArchiveLeaderboardMetric;
+  items: ArchiveLeaderboardItem[];
+  nextCursor?: string;
+  hasMore: boolean;
+  total: number;
+}
+
+export interface ArchiveMomentumMover extends SpecimenBase {
+  rank: number;
+  previousRank: number;
+  rankDelta: number;
+  metrics: SpecimenMetrics;
+}
+
+export interface ArchiveInsightsData {
+  summary: {
+    totalSpecimens: number;
+    totalVotes: number;
+    todayArenaBattles: number;
+    averageElo: number;
+    averageHype: number;
+    tradingDay: string;
+  };
+  momentum: {
+    rising: number;
+    unchanged: number;
+    falling: number;
+  };
+  topRising: ArchiveMomentumMover[];
+  topFalling: ArchiveMomentumMover[];
 }
 
 // Drawer Data

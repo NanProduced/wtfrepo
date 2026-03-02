@@ -45,8 +45,9 @@ export function ArenaLayout() {
   const leftSpecimen = duel?.left;
   const rightSpecimen = duel?.right;
 
-  const round = duel?.round ?? 1;
-  const participantCount = duel?.participantCount ?? 0;
+  const matchType = duel?.matchMeta.matchType ?? "UNKNOWN";
+  const walletBalance = duel?.wallet?.balance ?? null;
+  const voteCost = duel?.wallet?.voteCost ?? null;
 
   const canVote = useMemo(() => {
     return !isVoting && !isLoading && !!duel;
@@ -92,14 +93,12 @@ export function ArenaLayout() {
     try {
       const result = await submitArenaVote({
         battleId: duel.battleId,
-        choice,
+        winner: choice,
       });
 
-      if (result.newBugBalance !== null) {
-        toast.success(t("toast.diagnosis_submitted"), {
-          description: t("toast.balance", { amount: result.newBugBalance }),
-        });
-      }
+      toast.success(t("toast.diagnosis_submitted"), {
+        description: t("toast.balance", { amount: result.walletBalanceAfter }),
+      });
 
       await loadDuel();
     } catch (error) {
@@ -183,8 +182,14 @@ export function ArenaLayout() {
           <span className="font-pixel text-2xl md:text-4xl text-white drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">VS</span>
         </motion.div>
         <div className="hidden md:flex flex-col items-center gap-1 font-mono text-[10px] tracking-widest text-zinc-400 bg-black/40 border border-white/10 px-3 py-2 rounded-md">
-          <span>{t("round", { round })}</span>
-          <span className="text-zinc-500">{t("doctors_online", { count: participantCount })}</span>
+          <span>{t("match_type", { type: matchType })}</span>
+          {walletBalance !== null && voteCost !== null ? (
+            <span className="text-zinc-500">
+              {t("wallet_status", { balance: walletBalance, voteCost })}
+            </span>
+          ) : (
+            <span className="text-zinc-500">{t("guest_mode")}</span>
+          )}
         </div>
       </div>
 
@@ -193,7 +198,7 @@ export function ArenaLayout() {
         {leftSpecimen && (
           <AnimatePresence mode="wait">
             <SpecimenCard
-              key={`a-${round}-${leftSpecimen.specimenId}`}
+              key={`a-${duel?.battleId ?? "duel"}-${leftSpecimen.specimenId}`}
               specimen={leftSpecimen}
               side="left"
               onInspect={handleInspect}
@@ -208,7 +213,7 @@ export function ArenaLayout() {
         {rightSpecimen && (
           <AnimatePresence mode="wait">
             <SpecimenCard
-              key={`b-${round}-${rightSpecimen.specimenId}`}
+              key={`b-${duel?.battleId ?? "duel"}-${rightSpecimen.specimenId}`}
               specimen={rightSpecimen}
               side="right"
               onInspect={handleInspect}

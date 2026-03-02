@@ -176,7 +176,7 @@ export function NarratorDock() {
   const shouldRenderBubble = isVisible && currentText && allowCurrentPriority;
 
   return (
-    <div className="fixed bottom-12 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
+    <div className="pointer-events-none fixed bottom-16 right-4 z-50 flex flex-col items-end gap-3 md:bottom-12 md:right-6">
 
       {/* 8-BIT SPEECH BUBBLE */}
       <AnimatePresence>
@@ -185,7 +185,7 @@ export function NarratorDock() {
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
-            className="pointer-events-auto relative bg-white text-black p-4 max-w-[240px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-black image-rendering-pixelated"
+            className="pointer-events-auto relative max-w-[220px] border-2 border-black bg-white p-4 text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] image-rendering-pixelated sm:max-w-[240px]"
             style={{ fontFamily: 'var(--font-pixel)' }}
           >
             <p className="text-[10px] leading-relaxed">{currentText}</p>
@@ -199,7 +199,7 @@ export function NarratorDock() {
 
       {/* 8-BIT EYE CONTAINER */}
       <div
-        className="relative w-16 h-16 bg-white border-4 border-black pointer-events-auto cursor-pointer hover:scale-105 transition-transform active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(217,70,239,1)]"
+        className="relative h-14 w-14 cursor-pointer border-4 border-black bg-white shadow-[4px_4px_0px_0px_rgba(217,70,239,1)] transition-transform hover:scale-105 active:translate-y-1 pointer-events-auto md:h-16 md:w-16"
         onClick={() => useNarratorStore.getState().trigger(buildNarratorTrigger("idle"))}
         style={{ imageRendering: 'pixelated' }}
       >

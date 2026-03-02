@@ -4,6 +4,9 @@
  */
 
 import {
+  ArchiveInsightsData,
+  ArchiveLeaderboardMetric,
+  ArchiveLeaderboardResponse,
   ArchiveSpecimen,
   SpecimenDrawerData,
   SpecimenDetailData,
@@ -16,19 +19,44 @@ export async function getArchiveSpecimens(params: {
   cursor?: string;
   limit?: number;
   sort?: "HOT" | "NEW" | "INSANE";
-  tags?: string;
+  tags?: string[];
   q?: string;
 }) {
   const searchParams = new URLSearchParams();
   if (params.cursor) searchParams.set("cursor", params.cursor);
   if (params.limit) searchParams.set("limit", params.limit.toString());
   if (params.sort) searchParams.set("sort", params.sort);
-  if (params.tags) searchParams.set("tags", params.tags);
+  if (params.tags && params.tags.length > 0) {
+    for (const tag of params.tags) {
+      searchParams.append("tags", tag);
+    }
+  }
   if (params.q) searchParams.set("q", params.q);
 
   const res = await fetch(`/api/archive/specimens?${searchParams.toString()}`);
   if (!res.ok) throw await res.json();
   return res.json() as Promise<{ items: ArchiveSpecimen[]; nextCursor: string; hasMore: boolean }>;
+}
+
+export async function getArchiveInsights() {
+  const res = await fetch("/api/archive/insights");
+  if (!res.ok) throw await res.json();
+  return res.json() as Promise<ArchiveInsightsData>;
+}
+
+export async function getArchiveLeaderboard(params: {
+  metric: ArchiveLeaderboardMetric;
+  cursor?: string;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("metric", params.metric);
+  if (params.cursor) searchParams.set("cursor", params.cursor);
+  if (params.limit) searchParams.set("limit", params.limit.toString());
+
+  const res = await fetch(`/api/archive/leaderboard?${searchParams.toString()}`);
+  if (!res.ok) throw await res.json();
+  return res.json() as Promise<ArchiveLeaderboardResponse>;
 }
 
 export async function getSpecimenDrawer(id: string) {

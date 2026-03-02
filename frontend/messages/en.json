@@ -39,8 +39,9 @@
       "loading_duel": "Loading duel...",
       "arena_offline": "Arena offline",
       "retry": "Retry",
-      "round": "Round #{round}",
-      "doctors_online": "{count} doctors online",
+      "match_type": "Match {type}",
+      "wallet_status": "Balance {balance} · Cost {voteCost}",
+      "guest_mode": "Guest preview mode",
       "action": {
         "diagnose_a": "Diagnose A",
         "both_bad": "Both are bad",
@@ -249,20 +250,33 @@
       },
       "section": {
         "market_pulse": "Market pulse",
+        "market_access": "Market access",
         "official_commentary": "Official commentary",
+        "technical_dossier": "Technical dossier",
         "readme_excerpts": "Readme excerpts",
         "code_highlights": "Code highlights",
-        "comments_preview": "Comments (M05 preview)"
+        "comments": "Comments",
+        "betting": "Betting market"
       },
       "market": {
         "trend_intraday": "Elo trend (intraday)",
+        "source_live": "Live history",
+        "source_unavailable": "History unavailable",
         "max": "Max: {value}",
         "min": "Min: {value}",
-        "fallback_note": "Uses `eloHistory` when available. Falls back to generated sparkline before the history API is finalized."
+        "start": "Start: {value}",
+        "end": "End: {value}",
+        "delta": "Change: {value}",
+        "live_note": "Timeline data is powered by backend `eloHistory` records.",
+        "unavailable_note": "History chart is unavailable for this specimen right now. Please check back after daily snapshots are generated."
       },
       "commentary": {
         "diagnosis_label": "Diagnosis",
         "arena_reason_label": "Arena reason"
+      },
+      "dossier": {
+        "readme_excerpts": "Readme excerpts",
+        "code_highlights": "Code highlights"
       },
       "readme": {
         "excerpt_types": {
@@ -276,17 +290,67 @@
         "empty": "No code evidence snippet has been curated yet."
       },
       "comments": {
-        "intro": "Comments are pending backend APIs. This block is a placeholder for M05, including top roast, identity badges, and threaded list rendering.",
-        "top_roast_label": "Top roast (cache)",
-        "top_roast_pending": "Not available yet. Will consume `specimen_top_roast_cache` in M05.",
-        "identity_badges_label": "Identity badges ready",
-        "identity_badges_desc": "Owner and contributor identity are already available for future comment badge rendering.",
-        "owner": "Owner",
-        "contributor": "Contributor",
-        "composer_label": "Comment composer (preview)",
-        "composer_placeholder": "[M05] Comment input, rate limit hint, and identity badge preview.",
-        "mock_user": "User_{index}",
-        "stream_placeholder": "M05 comment stream placeholder card."
+        "top_roast_label": "Top roast",
+        "top_roast_empty": "No top roast yet. Be the first one to resonate.",
+        "anonymous": "Anonymous",
+        "badge": {
+          "owner": "Owner",
+          "contributor": "Contributor"
+        },
+        "resonance_count": "{count} resonances",
+        "composer_label": "Leave a comment",
+        "composer_placeholder": "Write your diagnosis note for this specimen...",
+        "composer_limit": "{count}/4000",
+        "composer_submit": "Publish comment",
+        "composer_submitting": "Publishing...",
+        "sort_label": "Sort by",
+        "sort": {
+          "hot": "Hot",
+          "new": "New"
+        },
+        "loading": "Loading comments...",
+        "loading_more": "Loading more...",
+        "load_more": "Load more comments",
+        "empty": "No comments yet.",
+        "status": {
+          "active": "Visible",
+          "pending_review": "Pending review",
+          "blocked": "Blocked",
+          "deleted": "Deleted"
+        },
+        "resonate": "Resonate",
+        "report": "Report",
+        "report_dialog": {
+          "close": "Close dialog",
+          "title": "Report comment",
+          "description": "Select a reason and optional note. This action cannot be undone.",
+          "reason_label": "Reason",
+          "message_label": "Details (optional)",
+          "message_placeholder": "Add context for moderators...",
+          "cancel": "Cancel",
+          "submit": "Submit report",
+          "submitting": "Submitting..."
+        },
+        "report_reason": {
+          "spam": "Spam",
+          "hate": "Hate speech",
+          "porn": "Adult content",
+          "political": "Political content",
+          "copyright": "Copyright issue",
+          "other": "Other"
+        },
+        "toast": {
+          "load_failed": "Failed to load comments.",
+          "load_more_failed": "Failed to load more comments.",
+          "content_required": "Comment content is required.",
+          "publish_success": "Comment published.",
+          "publish_failed": "Failed to publish comment.",
+          "resonance_success": "Resonance recorded.",
+          "resonance_canceled": "Resonance canceled.",
+          "resonance_failed": "Failed to update resonance.",
+          "report_success": "Report submitted.",
+          "report_failed": "Failed to submit report."
+        }
       },
       "sidebar": {
         "global_ranking": "Global ranking (Elo)",
@@ -295,6 +359,7 @@
         "hype": "Hype",
         "votes": "Votes",
         "comments": "Comments",
+        "repository_profile": "Repository profile",
         "repository_meta": "Repository meta",
         "timeline": "Timeline",
         "repo_identity": "Repo identity",
@@ -307,6 +372,7 @@
         "homepage": "Homepage",
         "homepage_available": "Available",
         "open_issues": "Open issues",
+        "last_push": "Last push",
         "metadata_synced": "Metadata synced"
       },
       "timeline": {
@@ -317,7 +383,9 @@
         "relative_time_note": "Relative time uses locale-aware formatting."
       },
       "identity": {
-        "owner": "Owner",
+        "owner": "Repository owner",
+        "owner_user_id": "User ID: {id}",
+        "contributor_note": "Contributor identity is shown inline inside comments.",
         "contributors": "Contributors ({count})",
         "no_contributors": "No contributor identities synced yet."
       },
@@ -328,7 +396,80 @@
       },
       "contract": {
         "official_commentary": "Supports `officialCommentary + excerpts + codeHighlights` contract path.",
-        "comments_placeholder": "M05 comments integrate here without layout changes."
+        "comments_placeholder": "Comments section is connected to M05 APIs."
+      },
+      "bet_access": {
+        "loading": "Loading market access snapshot...",
+        "empty": "Market access data is currently unavailable.",
+        "eligible_title": "Betting eligibility confirmed",
+        "eligible_desc": "You can place bets after returning to Arena flow.",
+        "blocked_title": "Betting is currently gated",
+        "odds_up": "Up odds: {value}",
+        "odds_flat": "Flat odds: {value}",
+        "odds_down": "Down odds: {value}",
+        "pool_up": "Up pool: {value}",
+        "pool_flat": "Flat pool: {value}",
+        "pool_down": "Down pool: {value}",
+        "note": "This page only shows access status. Betting market details are shown in Arena.",
+        "go_arena": "Go to Arena flow"
+      },
+      "betting": {
+        "loading": "Loading betting market...",
+        "empty": "Betting market is unavailable for this specimen.",
+        "trading_day": "Trading day: {date}",
+        "cutoff": "Bet cutoff: {time}",
+        "cutoff_unavailable": "No active pool for the current trading day.",
+        "status": {
+          "open": "Open",
+          "closed": "Closed",
+          "settled": "Settled",
+          "unavailable": "Unavailable"
+        },
+        "gate": {
+          "blocked": "Betting is currently unavailable for this specimen.",
+          "auth_required": "Sign in first, then vote in Arena before placing a bet.",
+          "vote_required": "Vote on this specimen in Arena before placing a bet.",
+          "ipo_locked": "This specimen is not open for betting.",
+          "pool_unavailable": "No active betting pool is available for this trading day.",
+          "pool_closed": "This betting pool is closed or already settled.",
+          "cutoff_passed": "Bet cutoff has passed for this trading day."
+        },
+        "direction": {
+          "up": "Up today",
+          "flat": "Flat today",
+          "down": "Down today"
+        },
+        "odds": "Odds {value}",
+        "pool": "Pool {value}",
+        "amount_label": "Stake amount (Bug)",
+        "amount_min_hint": "Minimum stake is 100 Bug.",
+        "placing": "Placing bet...",
+        "place_button": "Bet on {direction}",
+        "total_bettors": "Bettors: {value}",
+        "rake_rate": "Rake: {value}%",
+        "ipo_status": "IPO status: {value}",
+        "delta_r": "ΔR so far: {value}",
+        "current_elo": "Current Elo: {value}",
+        "moon_doom_threshold": "Moon/Doom threshold: {value}",
+        "latest_order": {
+          "title": "Latest order submitted",
+          "order_id": "Order: {orderId}",
+          "amount": "Amount {value}",
+          "odds": "Odds {value}"
+        },
+        "active_orders": {
+          "title": "My active orders for this specimen",
+          "empty": "No active orders on this specimen.",
+          "amount": "Stake {value}",
+          "current_odds": "Current odds {value}"
+        },
+        "note": "Pools and odds come from M03 betting APIs; writes are protected by backend idempotency and cutoff rules.",
+        "toast": {
+          "load_failed": "Failed to load betting market.",
+          "amount_invalid": "Enter a valid stake amount (minimum 100 Bug).",
+          "place_success": "Bet placed: {amount} Bug.",
+          "place_failed": "Failed to place bet."
+        }
       }
     },
     "watchlist": {
@@ -369,12 +510,23 @@
       }
     },
     "wallet": {
-      "currency": "Bug"
+      "currency": "Bug",
+      "loading": "..."
+    },
+    "notifications": {
+      "trigger": "Open pager",
+      "title": "Pager",
+      "mark_all": "Mark all as read",
+      "loading": "Loading notifications...",
+      "empty": "No notifications yet.",
+      "view_all": "Open notification center",
+      "auth_required": "Sign in to access pager notifications"
     },
     "menu": {
       "patient_id": "Patient ID",
       "my_space": "My space",
       "my_achievements": "My achievements",
+      "my_notifications": "My notifications",
       "logout": "Discharge",
       "login": "Check in"
     }
@@ -407,6 +559,49 @@
         "momentum_24h": "24h momentum",
         "waiting": "Waiting for data"
       },
+      "filters": {
+        "toggle": "Toggle filters",
+        "title": "Tag filters",
+        "selected_count": "{count} selected",
+        "clear": "Clear all",
+        "loading": "Loading filter dimensions...",
+        "empty": "No filter dimensions available yet.",
+        "active": "Active tags",
+        "remove": "Remove filter tag",
+        "config_load_error": "Failed to load filters",
+        "config_load_error_fallback": "Tag filter configuration is unavailable."
+      },
+      "insights": {
+        "summary": {
+          "title": "Snapshot",
+          "total_specimens": "Collected repos",
+          "today_arena_battles": "Today's arena battles",
+          "average_elo": "Average Elo",
+          "average_hype": "Average hype",
+          "total_votes": "Total votes"
+        },
+        "leaderboard": {
+          "title": "Dynamic leaderboard",
+          "by_elo": "Top by Elo",
+          "by_hype": "Top by hype",
+          "score": "Score {value}",
+          "rank_delta_unknown": "No rank shift yet",
+          "rank_delta_up": "Up {value}",
+          "rank_delta_down": "Down {value}",
+          "rank_delta_flat": "No rank change",
+          "load_more": "View more",
+          "empty": "No ranking data yet."
+        },
+        "momentum": {
+          "title": "Momentum map",
+          "rising": "Rising",
+          "unchanged": "Unchanged",
+          "falling": "Falling",
+          "top_rising": "Rank gainers",
+          "top_falling": "Rank decliners",
+          "no_rank_delta": "No rank shift data"
+        }
+      },
       "empty": "No specimens found in this sector.",
       "load_more": "Load more samples"
     },
@@ -414,7 +609,9 @@
       "log_label": "Archive item {id}.log",
       "pending": "System diagnostic pending...",
       "stars": "Stars",
-      "hype": "Hype"
+      "hype": "Hype",
+      "rank_elo": "Elo #{rank}",
+      "rank_hype": "Hype #{rank}"
     }
   },
   "me": {
@@ -426,6 +623,18 @@
       "fallback_name": "Patient",
       "personal_center": "Personal center",
       "bug_balance": "Bug balance",
+      "wallet_block": {
+        "balance": "Balance",
+        "daily_available": "Daily reward available: {amount} Bug",
+        "daily_claimed": "Daily reward already claimed",
+        "daily_claim": "Claim daily",
+        "daily_claiming": "Claiming...",
+        "toast": {
+          "daily_success": "Daily reward claimed: +{amount} Bug",
+          "daily_already_claimed": "Daily reward was already claimed.",
+          "daily_failed": "Failed to claim daily reward."
+        }
+      },
       "achievement_block": {
         "badge": "Credential",
         "title": "My achievements",
@@ -437,6 +646,91 @@
         "title": "Account profile",
         "description": "Nickname and preference management will expand here next.",
         "footnote": "Account controls remain in iterative delivery to avoid blocking core gameplay."
+      },
+      "watchlist_block": {
+        "badge": "Asset",
+        "title": "My watchlist",
+        "description": "Quick access to repositories you marked for follow-up.",
+        "added_at": "Added on {day}",
+        "elo": "Elo {value}",
+        "hype": "Hype {value}",
+        "empty": "No watchlist records yet. Add some specimens from archive or detail pages.",
+        "cta": "Browse archive"
+      },
+      "notifications_block": {
+        "badge": "Pager",
+        "title": "My notifications",
+        "description": "Track mentions, broadcasts, and unlock events in one place.",
+        "cta": "Open notification center"
+      },
+      "betting_block": {
+        "badge": "Betting",
+        "title": "My betting",
+        "description": "Check active orders, history, and settlement snapshots.",
+        "cta": "Open betting desk"
+      }
+    },
+    "betting": {
+      "meta": {
+        "title": "My betting desk",
+        "description": "Track active bets, history, and daily settlement results."
+      },
+      "back": "Back to personal center",
+      "badge": "Betting desk",
+      "title": "My betting",
+      "description": "Monitor your positions and settlement results.",
+      "loading": "Loading betting data...",
+      "open_specimen": "Open specimen",
+      "note": "This view reflects current P1 betting APIs. Minigame-related economy flow remains placeholder.",
+      "direction": {
+        "up": "Up today",
+        "flat": "Flat today",
+        "down": "Down today"
+      },
+      "status": {
+        "pending": "Pending",
+        "won": "Won",
+        "lost": "Lost",
+        "cancelled": "Cancelled"
+      },
+      "cards": {
+        "active_orders": "Active orders",
+        "total_staked": "Total staked today",
+        "won_orders": "Won orders"
+      },
+      "active": {
+        "title": "Active positions",
+        "trading_day": "Trading day {date}",
+        "empty": "No active positions yet.",
+        "amount": "Stake {value}",
+        "current_odds": "Current odds {value}"
+      },
+      "history": {
+        "title": "Order history",
+        "count": "Loaded {value}",
+        "empty": "No history yet.",
+        "amount": "Stake {value}",
+        "payout": "Payout {value}",
+        "settled_at": "Settled at {value}",
+        "loading_more": "Loading more...",
+        "load_more": "Load more history"
+      },
+      "settlement": {
+        "title": "Today's settlement",
+        "date": "Date {value}",
+        "empty": "No settlement records yet.",
+        "delta_r": "ΔR {value}",
+        "outcome": "Outcome {value}",
+        "outcome_force_settled": "Force settled",
+        "outcome_unknown": "Unknown",
+        "orders": "My orders {value}",
+        "loading_more": "Loading more...",
+        "load_more": "Load more settlement"
+      },
+      "toast": {
+        "load_failed": "Failed to load betting overview.",
+        "history_more_failed": "Failed to load more history.",
+        "settlement_more_failed": "Failed to load more settlement."
       }
     }
   },
@@ -486,8 +780,42 @@
       }
     }
   },
+  "notifications": {
+    "page": {
+      "meta": {
+        "title": "My notifications",
+        "description": "Review unread and historical pager messages."
+      },
+      "back": "Back to my space",
+      "title": "Notifications center",
+      "description": "All pager events are managed here with status filters and cursor pagination.",
+      "unread_count": "Unread {count}",
+      "filters": {
+        "all": "All",
+        "unread": "Unread",
+        "read": "Read"
+      },
+      "actions": {
+        "mark_all": "Mark all as read",
+        "load_more": "Load more"
+      },
+      "state": {
+        "loading": "Loading notifications...",
+        "empty": "No notifications for this filter.",
+        "error": "Failed to load notifications."
+      }
+    }
+  },
   "ticker": {
     "label": "Live",
-    "warming_up": "Ticker is warming up..."
+    "warming_up": "Ticker is warming up...",
+    "mobile": {
+      "open": "Open ticker feed",
+      "close": "Close ticker feed",
+      "title": "Recent ticker feed",
+      "subtitle": "Latest public updates from the ward.",
+      "empty": "No ticker items yet.",
+      "just_now": "Just now"
+    }
   }
 }

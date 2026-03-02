@@ -1,7 +1,7 @@
 import RootLayout from "@/shared/components/layout/app-shell";
 import { AppProviders } from "@/shared/providers/app-providers";
-import { notFound } from 'next/navigation';
-import { getMessages } from 'next-intl/server';
+import { notFound } from "next/navigation";
+import { getMessages } from "next-intl/server";
 import { Metadata } from "next";
 import "../globals.css";
 
@@ -27,14 +27,14 @@ export default async function Layout({
   const { locale } = await params;
 
   // Validate that the incoming `locale` parameter is valid
-  if (!['en', 'zh'].includes(locale)) notFound();
+  if (!["en", "zh"].includes(locale)) notFound();
 
   // Providing all messages to the client
   // side is the easiest way to get started
-  const messages = await getMessages();
+  const messages = await getMessages({ locale });
 
   return (
-    <html lang={locale} className="dark" style={{colorScheme: 'dark'}}>
+    <html lang={locale} className="dark" style={{ colorScheme: "dark" }}>
       <body className="antialiased min-h-screen bg-background text-foreground">
         <AppProviders messages={messages} locale={locale}>
           <RootLayout>{children}</RootLayout>

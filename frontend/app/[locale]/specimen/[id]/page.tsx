@@ -4,11 +4,14 @@ import { SpecimenDetailData } from "@/shared/types/specimen";
 import { SpecimenTagGroup } from "@/shared/components/specimen/tag-group";
 import { HypeActions } from "@/shared/components/specimen/hype-actions";
 import { WatchlistToggleButton } from "@/modules/specimen/components/watchlist-toggle-button";
+import { SpecimenBettingAccessCard } from "@/modules/specimen/components/specimen-betting-access-card";
+import { SpecimenCommentsPanel } from "@/modules/specimen/components/specimen-comments-panel";
 import { Button } from "@/shared/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Activity,
-  CalendarDays,
   ChevronLeft,
+  Coins,
   Code2,
   ExternalLink,
   FileText,
@@ -20,9 +23,7 @@ import {
   ShieldAlert,
   Siren,
   Star,
-  Terminal,
   UserRound,
-  UsersRound,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -102,29 +103,6 @@ function formatCompactNumber(value: number | undefined, locale: SupportedLocale)
   }).format(value);
 }
 
-interface TrendPoint {
-  at: string;
-  value: number;
-}
-
-function buildFallbackTrend(seed: number, points = 12): TrendPoint[] {
-  const now = Date.now();
-  const data: TrendPoint[] = [];
-  let value = seed;
-
-  for (let index = points - 1; index >= 0; index--) {
-    const wave = Math.sin(index / 2.2) * Math.max(seed * 0.015, 2);
-    const drift = (index % 2 === 0 ? 1 : -1) * Math.max(seed * 0.004, 1);
-    value = Math.max(1, Math.round(value + wave + drift));
-    data.push({
-      at: new Date(now - index * 60 * 60 * 1000).toISOString(),
-      value,
-    });
-  }
-
-  return data;
-}
-
 function buildSparklinePath(values: number[], width: number, height: number) {
   if (values.length === 0) {
     return "";
@@ -141,6 +119,30 @@ function buildSparklinePath(values: number[], width: number, height: number) {
       return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(" ");
+}
+
+function buildSparklineAreaPath(values: number[], width: number, height: number) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = Math.max(1, max - min);
+
+  const points = values.map((value, index) => {
+    const x = (index / Math.max(1, values.length - 1)) * width;
+    const y = height - ((value - min) / spread) * height;
+    return { x, y };
+  });
+
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+    .join(" ");
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+
+  return `${linePath} L${lastPoint.x.toFixed(2)},${height.toFixed(2)} L${firstPoint.x.toFixed(2)},${height.toFixed(2)} Z`;
 }
 
 function DetailSection({
@@ -253,14 +255,16 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
       at: point.at,
       value: point.elo,
     })) || [];
-  const trendSeries = eloSeries.length > 1 ? eloSeries : buildFallbackTrend(metrics.elo, 14);
-  const trendPath = buildSparklinePath(
-    trendSeries.map((point) => point.value),
-    640,
-    180
-  );
+  const hasLiveTrend = eloSeries.length > 1;
+  const trendSeries = eloSeries;
+  const trendValues = trendSeries.map((point) => point.value);
+  const trendPath = buildSparklinePath(trendValues, 640, 180);
+  const trendAreaPath = buildSparklineAreaPath(trendValues, 640, 180);
   const trendMin = trendSeries.length > 0 ? Math.min(...trendSeries.map((point) => point.value)) : metrics.elo;
   const trendMax = trendSeries.length > 0 ? Math.max(...trendSeries.map((point) => point.value)) : metrics.elo;
+  const trendFirst = trendSeries[0];
+  const trendLast = trendSeries[trendSeries.length - 1];
+  const trendDelta = trendFirst && trendLast ? trendLast.value - trendFirst.value : 0;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background pb-20 pt-24 text-foreground">
@@ -348,30 +352,6 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
 
         <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
           <main className="space-y-6 xl:col-span-8">
-            <DetailSection title={t("section.market_pulse")} icon={<Activity className="h-4 w-4" />}>
-              <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs text-zinc-400">{t("market.trend_intraday")}</p>
-                  <div className="inline-flex items-center gap-3 text-xs text-zinc-500">
-                    <span>{t("market.max", { value: trendMax })}</span>
-                    <span>{t("market.min", { value: trendMin })}</span>
-                  </div>
-                </div>
-                <svg viewBox="0 0 640 180" className="h-44 w-full">
-                  <defs>
-                    <linearGradient id="elo-line" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#d946ef" stopOpacity="0.95" />
-                      <stop offset="100%" stopColor="#d946ef" stopOpacity="0.25" />
-                    </linearGradient>
-                  </defs>
-                  <path d={trendPath} fill="none" stroke="url(#elo-line)" strokeWidth="3" />
-                </svg>
-                <p className="mt-2 text-[11px] text-zinc-500">
-                  {t("market.fallback_note")}
-                </p>
-              </div>
-            </DetailSection>
-
             <DetailSection title={t("section.official_commentary")} icon={<Siren className="h-4 w-4" />}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
@@ -385,90 +365,122 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
               </div>
             </DetailSection>
 
-            <DetailSection title={t("section.readme_excerpts")} icon={<FileText className="h-4 w-4" />} monoTitle>
-              {readmeExcerpts.length > 0 ? (
-                <div className="space-y-3">
-                  {readmeExcerpts.map((excerpt, index) => (
-                    <article key={`${excerpt.excerptType}-${index}`} className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                      <p className="mb-2 font-mono text-[11px] tracking-wider text-primary">{resolveExcerptTypeLabel(excerpt.excerptType)}</p>
-                      <p className="text-sm leading-7 text-zinc-300">{excerpt.text}</p>
-                    </article>
-                  ))}
+            <DetailSection title={t("section.market_pulse")} icon={<Activity className="h-4 w-4" />}>
+              <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-zinc-400">{t("market.trend_intraday")}</p>
+                  <div className="inline-flex items-center gap-3 text-xs text-zinc-500">
+                    <span
+                      className={cn(
+                        "rounded-full border px-2 py-0.5 font-mono text-[10px]",
+                        hasLiveTrend
+                          ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-300"
+                          : "border-zinc-300/30 bg-zinc-500/10 text-zinc-300"
+                      )}
+                    >
+                      {hasLiveTrend ? t("market.source_live") : t("market.source_unavailable")}
+                    </span>
+                    <span>{t("market.max", { value: trendMax })}</span>
+                    <span>{t("market.min", { value: trendMin })}</span>
+                  </div>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
-                  {t("readme.empty")}
-                </div>
-              )}
+                {hasLiveTrend ? (
+                  <>
+                    <svg viewBox="0 0 640 180" className="h-44 w-full">
+                      <defs>
+                        <linearGradient id="elo-line-gradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#d946ef" stopOpacity="0.95" />
+                          <stop offset="100%" stopColor="#d946ef" stopOpacity="0.25" />
+                        </linearGradient>
+                        <linearGradient id="elo-area-gradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#d946ef" stopOpacity="0.22" />
+                          <stop offset="100%" stopColor="#d946ef" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d={trendAreaPath} fill="url(#elo-area-gradient)" />
+                      <path d={trendPath} fill="none" stroke="url(#elo-line-gradient)" strokeWidth="3" />
+                    </svg>
+                    <div className="mt-3 grid gap-2 text-[11px] text-zinc-500 md:grid-cols-3">
+                      <span>{t("market.start", { value: formatDateLabel(trendFirst?.at, preferredLocale) })}</span>
+                      <span>{t("market.end", { value: formatDateLabel(trendLast?.at, preferredLocale) })}</span>
+                      <span
+                        className={cn(
+                          "font-mono",
+                          trendDelta > 0 ? "text-emerald-300" : trendDelta < 0 ? "text-rose-300" : "text-zinc-400"
+                        )}
+                      >
+                        {t("market.delta", { value: `${trendDelta > 0 ? "+" : ""}${trendDelta}` })}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/15 bg-zinc-900/70 px-4 py-10 text-center text-sm text-zinc-500">
+                    {t("market.unavailable_note")}
+                  </div>
+                )}
+                <p className="mt-2 text-[11px] text-zinc-500">
+                  {hasLiveTrend ? t("market.live_note") : t("market.unavailable_note")}
+                </p>
+              </div>
             </DetailSection>
 
-            <DetailSection title={t("section.code_highlights")} icon={<Terminal className="h-4 w-4" />} monoTitle>
-              {highlights.length > 0 ? (
-                <div className="space-y-4">
-                  {highlights.map((highlight, index) => (
-                    <article key={`${highlight.title}-${index}`} className="rounded-xl border border-white/10 bg-black/70">
-                      <header className="flex items-center justify-between border-b border-white/10 px-4 py-2">
-                        <p className="font-mono text-xs text-zinc-300">{highlight.title}</p>
-                        <p className="font-mono text-[11px] text-primary">{highlight.codeLanguage}</p>
-                      </header>
-                      <pre className="overflow-x-auto px-4 py-3 text-xs text-emerald-300">
-                        <code>{highlight.snippet}</code>
-                      </pre>
-                      <footer className="border-t border-white/10 px-4 py-2 text-xs text-zinc-500">{highlight.explainText}</footer>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
-                  {t("code.empty")}
-                </div>
-              )}
+            <DetailSection title={t("section.market_access")} icon={<Coins className="h-4 w-4" />}>
+              <SpecimenBettingAccessCard specimenId={specimen.specimenId} locale={preferredLocale} />
             </DetailSection>
 
-            <DetailSection title={t("section.comments_preview")} icon={<MessageCircle className="h-4 w-4" />}>
-              <div className="space-y-4">
-                <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-400">
-                  {t("comments.intro")}
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                    <p className="mb-2 text-xs font-semibold tracking-wide text-primary">{t("comments.top_roast_label")}</p>
-                    <p className="text-sm text-zinc-500">{t("comments.top_roast_pending")}</p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                    <p className="mb-2 text-xs font-semibold tracking-wide text-zinc-300">{t("comments.identity_badges_label")}</p>
-                    <p className="text-sm text-zinc-500">
-                      {t("comments.identity_badges_desc")}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-mono text-[10px] text-primary">{t("comments.owner")}</span>
-                      <span className="rounded-md border border-violet-400/40 bg-violet-500/10 px-2 py-1 font-mono text-[10px] text-violet-300">{t("comments.contributor")}</span>
+            <DetailSection title={t("section.technical_dossier")} icon={<FileText className="h-4 w-4" />} monoTitle>
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-400">{t("dossier.readme_excerpts")}</p>
+                  {readmeExcerpts.length > 0 ? (
+                    <div className="space-y-3">
+                      {readmeExcerpts.map((excerpt, index) => (
+                        <article key={`${excerpt.excerptType}-${index}`} className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
+                          <p className="mb-2 font-mono text-[11px] tracking-wider text-primary">{resolveExcerptTypeLabel(excerpt.excerptType)}</p>
+                          <p className="text-sm leading-7 text-zinc-300">{excerpt.text}</p>
+                        </article>
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
+                      {t("readme.empty")}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                    <p className="mb-2 text-xs text-zinc-500">{t("comments.composer_label")}</p>
-                    <div className="h-16 rounded-lg border border-dashed border-white/10 bg-zinc-900/80 px-3 py-2 text-xs text-zinc-600">
-                      {t("comments.composer_placeholder")}
+                  <p className="text-xs font-semibold tracking-wide text-zinc-400">{t("dossier.code_highlights")}</p>
+                  {highlights.length > 0 ? (
+                    <div className="space-y-4">
+                      {highlights.map((highlight, index) => (
+                        <article key={`${highlight.title}-${index}`} className="rounded-xl border border-white/10 bg-black/70">
+                          <header className="flex items-center justify-between border-b border-white/10 px-4 py-2">
+                            <p className="font-mono text-xs text-zinc-300">{highlight.title}</p>
+                            <p className="font-mono text-[11px] text-primary">{highlight.codeLanguage}</p>
+                          </header>
+                          <pre className="overflow-x-auto px-4 py-3 text-xs text-emerald-300">
+                            <code>{highlight.snippet}</code>
+                          </pre>
+                          <footer className="border-t border-white/10 px-4 py-2 text-xs text-zinc-500">{highlight.explainText}</footer>
+                        </article>
+                      ))}
                     </div>
-                  </div>
-
-                  {[0, 1].map((slot) => (
-                    <article key={slot} className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                      <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500">
-                        <span className="rounded-md border border-white/10 px-2 py-0.5 font-mono">{t("comments.mock_user", { index: slot + 1 })}</span>
-                        <span className="rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 font-mono text-[10px] text-violet-300">
-                          {t("comments.contributor")}
-                        </span>
-                      </div>
-                      <p className="text-sm text-zinc-500">{t("comments.stream_placeholder")}</p>
-                    </article>
-                  ))}
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
+                      {t("code.empty")}
+                    </div>
+                  )}
                 </div>
               </div>
+            </DetailSection>
+
+            <DetailSection title={t("section.comments")} icon={<MessageCircle className="h-4 w-4" />}>
+              <SpecimenCommentsPanel
+                specimenId={specimen.specimenId}
+                locale={preferredLocale}
+                ownerUserId={repoIdentity?.owner?.githubUserId}
+                contributorUserIds={contributors.map((item) => item.githubUserId)}
+              />
             </DetailSection>
           </main>
 
@@ -517,58 +529,64 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
             </section>
 
             <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
-              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.repository_meta")}</p>
-              <div className="space-y-3">
-                <InfoRow label={t("repo_meta.visibility")} value={githubMeta.visibility} />
-                <InfoRow label={t("repo_meta.default_branch")} value={githubMeta.defaultBranch} />
-                <InfoRow label={t("repo_meta.license")} value={githubMeta.license?.name || "-"} />
-                <InfoRow label={t("repo_meta.homepage")} value={githubMeta.homepage ? t("repo_meta.homepage_available") : "-"} />
-                <InfoRow label={t("repo_meta.open_issues")} value={githubMeta.openIssuesCount.toLocaleString()} />
-                <InfoRow label={t("repo_meta.metadata_synced")} value={formatDateLabel(githubMeta.metadataSyncedAt, preferredLocale)} />
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
-              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.timeline")}</p>
-              <div className="space-y-3">
-                <InfoRow label={t("timeline.created")} value={formatDateLabel(githubMeta.createdAt, preferredLocale)} />
-                <InfoRow label={t("timeline.updated")} value={formatDateLabel(githubMeta.updatedAt, preferredLocale)} />
-                <InfoRow label={t("timeline.pushed")} value={formatDateLabel(githubMeta.pushedAt, preferredLocale)} />
-                <InfoRow label={t("timeline.last_activity")} value={formatRelativeLabel(githubMeta.pushedAt, preferredLocale)} />
-              </div>
-              <div className="mt-4 rounded-lg border border-white/10 bg-zinc-950/80 p-3 text-[11px] text-zinc-500">
-                <p className="inline-flex items-center gap-1">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  {t("timeline.relative_time_note")}
-                </p>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-white/10 bg-zinc-900/70 p-5 backdrop-blur-xl">
-              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.repo_identity")}</p>
-              <div className="space-y-3">
-                <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
-                  <p className="mb-1 inline-flex items-center gap-1 text-[11px] text-primary">
-                    <UserRound className="h-3.5 w-3.5" /> {t("identity.owner")}
-                  </p>
-                  <p className="font-mono text-sm text-zinc-100">{repoIdentity?.owner?.githubLogin || "-"}</p>
+              <p className="mb-4 text-sm font-semibold text-zinc-100">{t("sidebar.repository_profile")}</p>
+              <div className="space-y-6">
+                <div>
+                  <p className="mb-3 text-xs font-semibold tracking-wide text-zinc-400">{t("sidebar.repository_meta")}</p>
+                  <div className="space-y-3">
+                    <InfoRow label={t("repo_meta.license")} value={githubMeta.license?.name || "-"} />
+                    <InfoRow
+                      label={t("repo_meta.homepage")}
+                      value={
+                        githubMeta.homepage ? (
+                          <a
+                            href={githubMeta.homepage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary transition-colors hover:text-primary/80"
+                          >
+                            {t("repo_meta.homepage_available")}
+                          </a>
+                        ) : (
+                          "-"
+                        )
+                      }
+                    />
+                    <InfoRow label={t("repo_meta.last_push")} value={formatDateLabel(githubMeta.pushedAt, preferredLocale)} />
+                    <InfoRow label={t("repo_meta.metadata_synced")} value={formatDateLabel(githubMeta.metadataSyncedAt, preferredLocale)} />
+                  </div>
                 </div>
 
-                <div className="rounded-lg border border-white/10 bg-zinc-950/80 p-3">
-                  <p className="mb-2 inline-flex items-center gap-1 text-[11px] text-zinc-400">
-                    <UsersRound className="h-3.5 w-3.5" /> {t("identity.contributors", { count: contributors.length })}
-                  </p>
-                  {contributors.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {contributors.slice(0, 8).map((contributor) => (
-                        <span key={contributor.githubUserId} className="rounded-md border border-white/10 px-2 py-1 font-mono text-[11px] text-zinc-300">
-                          {contributor.githubLogin}
-                        </span>
-                      ))}
+                <div>
+                  <p className="mb-3 text-xs font-semibold tracking-wide text-zinc-400">{t("sidebar.repo_identity")}</p>
+                  <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+                    <p className="mb-2 inline-flex items-center gap-1 text-[11px] text-primary">
+                      <UserRound className="h-3.5 w-3.5" /> {t("identity.owner")}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={githubMeta.owner.avatarUrl}
+                        alt={githubMeta.owner.login}
+                        className="h-9 w-9 rounded-md border border-white/10 object-cover"
+                      />
+                      <div className="min-w-0">
+                        <a
+                          href={githubMeta.owner.htmlUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="truncate font-mono text-sm text-zinc-100 transition-colors hover:text-primary"
+                        >
+                          {repoIdentity?.owner?.githubLogin || githubMeta.owner.login}
+                        </a>
+                        <p className="font-mono text-[11px] text-zinc-500">
+                          {t("identity.owner_user_id", {
+                            id: repoIdentity?.owner?.githubUserId || githubMeta.owner.id || "-",
+                          })}
+                        </p>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-xs text-zinc-500">{t("identity.no_contributors")}</p>
-                  )}
+                    <p className="mt-2 text-[11px] text-zinc-500">{t("identity.contributor_note")}</p>
+                  </div>
                 </div>
               </div>
             </section>
