@@ -39,12 +39,6 @@ docker compose -f backend/docker-compose.local.yml up -d
 ./mvnw spring-boot:run
 ```
 
-3. 如需 M03 收口联调（Outbox + Settlement）：
-
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=m03-closeout
-```
-
 默认配置来自 `application.yaml`，关键本地变量如下（均有默认值）：
 
 - `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`
@@ -56,11 +50,6 @@ docker compose -f backend/docker-compose.local.yml up -d
 ```bash
 ./mvnw -DskipTests compile
 ```
-
-### M03 收口联调（Outbox + Settlement）
-
-- 使用 `application-m03-closeout.yaml` 打开 `Outbox(JPA/Relay/Consumer)` 与 `Betting Settlement` 调度开关。
-- 默认仍以 `application.yaml` 为主，收口 profile 仅用于联调与冒烟验证。
 
 ## 文档与需求
 
