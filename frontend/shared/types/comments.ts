@@ -63,7 +63,7 @@ export interface CommentContextResponse {
   commentId: string;
   author: {
     userId: string;
-    username: string;
+    username: string | null;
     avatarUrl: string | null;
   };
   contentPreview: string;
@@ -80,10 +80,9 @@ export interface CommentTopRoastResponse {
   commentId: string | null;
   author: {
     userId: string;
-    username: string;
+    username: string | null;
     avatarUrl: string | null;
   } | null;
   contentPreview: string | null;
   resonanceCount: number | null;
 }
-

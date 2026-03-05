@@ -6,6 +6,7 @@ import { HypeActions } from "@/shared/components/specimen/hype-actions";
 import { WatchlistToggleButton } from "@/modules/specimen/components/watchlist-toggle-button";
 import { SpecimenBettingAccessCard } from "@/modules/specimen/components/specimen-betting-access-card";
 import { SpecimenCommentsPanel } from "@/modules/specimen/components/specimen-comments-panel";
+import { ReadmeExcerptsPanel } from "@/modules/specimen/components/readme-excerpts-panel";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -46,7 +47,7 @@ function resolveLocalizedCopy(copy: LocalizedCopy | undefined, locale: Supported
   return fallback;
 }
 
-function formatDateLabel(timestamp: string | undefined, locale: SupportedLocale) {
+function formatDateLabel(timestamp: string | null | undefined, locale: SupportedLocale) {
   if (!timestamp) {
     return "-";
   }
@@ -63,7 +64,7 @@ function formatDateLabel(timestamp: string | undefined, locale: SupportedLocale)
   }).format(parsed);
 }
 
-function formatRelativeLabel(timestamp: string | undefined, locale: SupportedLocale) {
+function formatRelativeLabel(timestamp: string | null | undefined, locale: SupportedLocale) {
   if (!timestamp) {
     return "-";
   }
@@ -222,6 +223,13 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
   const { specimen, githubMeta, metrics, readme, tags, officialCommentary, codeHighlights, repoIdentity } = data;
 
   const [ownerPart, repoPart] = specimen.repoFullName.split("/");
+  const ownerLogin = githubMeta.owner.login || ownerPart || "unknown";
+  const ownerAvatarUrl =
+    githubMeta.owner.avatarUrl ||
+    `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerLogin || specimen.specimenId)}`;
+  const ownerHtmlUrl = githubMeta.owner.htmlUrl || githubMeta.repoHtmlUrl;
+  const ownerProfileName = repoIdentity?.owner?.githubLogin || ownerLogin;
+  const ownerUserId = repoIdentity?.owner?.githubUserId || githubMeta.owner.id || "-";
   const oneLiner = resolveLocalizedCopy(
     officialCommentary?.oneLiner,
     preferredLocale,
@@ -232,20 +240,6 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
     preferredLocale,
     t("defaults.no_arena_reason")
   );
-
-  const resolveExcerptTypeLabel = (excerptType: string) => {
-    const normalizedType = excerptType.trim().toUpperCase();
-    if (normalizedType === "FUNNY") {
-      return t("readme.excerpt_types.funny");
-    }
-    if (normalizedType === "SUMMARY") {
-      return t("readme.excerpt_types.summary");
-    }
-    if (normalizedType === "HIGHLIGHT") {
-      return t("readme.excerpt_types.highlight");
-    }
-    return excerptType;
-  };
 
   const readmeExcerpts = readme?.excerpts || [];
   const highlights = codeHighlights || [];
@@ -292,8 +286,8 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
             <div className="relative">
               <div className="h-20 w-20 overflow-hidden rounded-2xl border border-white/15 bg-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] md:h-24 md:w-24">
                 <img
-                  src={githubMeta.owner.avatarUrl}
-                  alt={githubMeta.owner.login}
+                  src={ownerAvatarUrl}
+                  alt={ownerLogin}
                   className="h-full w-full object-cover grayscale contrast-125 transition duration-300 hover:grayscale-0"
                 />
               </div>
@@ -304,7 +298,7 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
 
             <div className="min-w-0 flex-1 space-y-3">
               <p className="font-mono text-xs tracking-wider text-primary">
-                {ownerPart || githubMeta.owner.login} /
+                {ownerPart || ownerLogin} /
               </p>
               <h1 className="font-mono text-2xl font-semibold tracking-tight text-zinc-100 md:text-4xl">{repoPart || specimen.repoFullName}</h1>
 
@@ -432,20 +426,7 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
               <div className="space-y-6">
                 <div className="space-y-3">
                   <p className="text-xs font-semibold tracking-wide text-zinc-400">{t("dossier.readme_excerpts")}</p>
-                  {readmeExcerpts.length > 0 ? (
-                    <div className="space-y-3">
-                      {readmeExcerpts.map((excerpt, index) => (
-                        <article key={`${excerpt.excerptType}-${index}`} className="rounded-xl border border-white/10 bg-zinc-950/80 p-4">
-                          <p className="mb-2 font-mono text-[11px] tracking-wider text-primary">{resolveExcerptTypeLabel(excerpt.excerptType)}</p>
-                          <p className="text-sm leading-7 text-zinc-300">{excerpt.text}</p>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/70 p-4 text-sm text-zinc-500">
-                      {t("readme.empty")}
-                    </div>
-                  )}
+                  <ReadmeExcerptsPanel excerpts={readmeExcerpts} locale={preferredLocale} />
                 </div>
 
                 <div className="space-y-3">
@@ -565,22 +546,22 @@ export default async function SpecimenDetailPage({ params }: SpecimenPageProps) 
                     </p>
                     <div className="flex items-center gap-3">
                       <img
-                        src={githubMeta.owner.avatarUrl}
-                        alt={githubMeta.owner.login}
+                        src={ownerAvatarUrl}
+                        alt={ownerLogin}
                         className="h-9 w-9 rounded-md border border-white/10 object-cover"
                       />
                       <div className="min-w-0">
                         <a
-                          href={githubMeta.owner.htmlUrl}
+                          href={ownerHtmlUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="truncate font-mono text-sm text-zinc-100 transition-colors hover:text-primary"
                         >
-                          {repoIdentity?.owner?.githubLogin || githubMeta.owner.login}
+                          {ownerProfileName}
                         </a>
                         <p className="font-mono text-[11px] text-zinc-500">
                           {t("identity.owner_user_id", {
-                            id: repoIdentity?.owner?.githubUserId || githubMeta.owner.id || "-",
+                            id: ownerUserId,
                           })}
                         </p>
                       </div>

@@ -132,6 +132,70 @@ public class AdminPlatformController {
     return ResponseEntity.ok(AdminTokenResponse.from(result));
   }
 
+  @PostMapping("/oauth/authorize")
+  @Operation(summary = "Issue admin OAuth authorization code")
+  public ResponseEntity<AdminOAuthAuthorizeResponse> authorizeOAuth(
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = AdminConstants.Header.IDEMPOTENCY_KEY,
+              description = "Idempotency key for admin write operations.",
+              required = false)
+          @RequestHeader(name = AdminConstants.Header.IDEMPOTENCY_KEY, required = false)
+          String idempotencyKey,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody AdminOAuthAuthorizeRequest request,
+      HttpServletRequest servletRequest) {
+    AdminPrincipal principal = AdminApiSupport.requireUserPrincipal(jwt);
+    AdminPlatformService.OAuthAuthorizeResult result =
+        adminPlatformService.issueOAuthAuthorizationCode(
+            requestId,
+            idempotencyKey,
+            principal.userId(),
+            request.redirectUri(),
+            request.state(),
+            resolveClientIp(servletRequest),
+            resolveUserAgent(servletRequest));
+    return ResponseEntity.ok(AdminOAuthAuthorizeResponse.from(result));
+  }
+
+  @PostMapping("/oauth/token")
+  @Operation(summary = "Exchange OAuth authorization code to admin token")
+  public ResponseEntity<AdminTokenResponse> exchangeOAuthToken(
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = RequestIdConstants.HEADER_NAME,
+              description = "Request correlation id.",
+              required = true)
+          @RequestHeader(RequestIdConstants.HEADER_NAME)
+          String requestId,
+      @Parameter(
+              in = ParameterIn.HEADER,
+              name = AdminConstants.Header.IDEMPOTENCY_KEY,
+              description = "Idempotency key for admin write operations.",
+              required = false)
+          @RequestHeader(name = AdminConstants.Header.IDEMPOTENCY_KEY, required = false)
+          String idempotencyKey,
+      @Valid @RequestBody AdminOAuthTokenRequest request,
+      HttpServletRequest servletRequest) {
+    AdminAuthResult result =
+        adminPlatformService.exchangeOAuthAuthorizationCode(
+            requestId,
+            idempotencyKey,
+            request.code(),
+            request.redirectUri(),
+            request.state(),
+            resolveClientIp(servletRequest),
+            resolveUserAgent(servletRequest));
+    return ResponseEntity.ok(AdminTokenResponse.from(result));
+  }
+
   @PostMapping("/logout")
   @Operation(summary = "Admin logout (token revoke)")
   public ResponseEntity<AdminLogoutResponse> logout(
@@ -477,6 +541,11 @@ public class AdminPlatformController {
 
   public record AdminBootstrapRequest(@NotBlank String email) {}
 
+  public record AdminOAuthAuthorizeRequest(@NotBlank String redirectUri, @NotBlank String state) {}
+
+  public record AdminOAuthTokenRequest(
+      @NotBlank String code, @NotBlank String redirectUri, @NotBlank String state) {}
+
   public record AdminManagerCreateRequest(@NotBlank String userId) {}
 
   public record AdminBroadcastCreateRequest(
@@ -497,6 +566,23 @@ public class AdminPlatformController {
           "Bearer",
           result.issuedToken().expiresIn(),
           result.issuedToken().expiresAt(),
+          new AdminUserResponse(result.userId(), result.username(), result.roles()));
+    }
+  }
+
+  public record AdminOAuthAuthorizeResponse(
+      String code,
+      Instant expiresAt,
+      String redirectUri,
+      String state,
+      AdminUserResponse user) {
+
+    static AdminOAuthAuthorizeResponse from(AdminPlatformService.OAuthAuthorizeResult result) {
+      return new AdminOAuthAuthorizeResponse(
+          result.code(),
+          result.expiresAt(),
+          result.redirectUri(),
+          result.state(),
           new AdminUserResponse(result.userId(), result.username(), result.roles()));
     }
   }

@@ -8,6 +8,7 @@ public final class AdminAuditActions {
   public static final String ADMIN_BOOTSTRAP = "ADMIN_BOOTSTRAP";
   public static final String ADMIN_LOGIN = "ADMIN_LOGIN";
   public static final String ADMIN_LOGOUT = "ADMIN_LOGOUT";
+  public static final String ADMIN_OAUTH_AUTHORIZE = "ADMIN_OAUTH_AUTHORIZE";
   public static final String MANAGER_ADD = "MANAGER_ADD";
   public static final String MANAGER_REVOKE = "MANAGER_REVOKE";
   public static final String COMMENT_BLOCK = "COMMENT_BLOCK";

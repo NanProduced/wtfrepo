@@ -16,7 +16,13 @@ public final class SpecimenModels {
 
   public record TagAssignment(String dimensionKey, String tagKey) {}
 
-  public record ReadmeExcerptInput(String excerptType, String candidateId, String text, Integer priority) {
+  public record ReadmeExcerptInput(
+      String excerptType,
+      String candidateId,
+      String text,
+      String translatedTextZh,
+      Object translationMeta,
+      Integer priority) {
 
     public int resolvedPriority() {
       return priority == null ? 0 : priority;
@@ -260,7 +266,8 @@ public final class SpecimenModels {
 
   public record DetailMetricsResult(int elo, double hype, long votes, long comments) {}
 
-  public record DetailReadmeExcerptResult(String excerptType, String text) {}
+  public record DetailReadmeExcerptResult(
+      String excerptType, String text, String translatedTextZh, Object translationMeta) {}
 
   public record DetailReadmeResult(String snapshotId, List<DetailReadmeExcerptResult> excerpts) {}
 

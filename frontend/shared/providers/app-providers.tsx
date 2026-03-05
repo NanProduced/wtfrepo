@@ -4,7 +4,7 @@
 
 import { SessionProvider } from "./session";
 
-import { NextIntlClientProvider } from "next-intl";
+import { NextIntlClientProvider, type AbstractIntlMessages } from "next-intl";
 import type { Session } from "next-auth";
 import { Toaster } from "sonner";
 
@@ -33,41 +33,51 @@ function setNestedValue(
   cursor[path[path.length - 1]] = value;
 }
 
-function normalizeMessageKeys(input: unknown): unknown {
-  if (Array.isArray(input)) {
-    return input.map((item) => normalizeMessageKeys(item));
-  }
+function normalizeMessageKeys(
+  input: AbstractIntlMessages | undefined
+): AbstractIntlMessages | undefined {
+  const normalizeNode = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map((item) => normalizeNode(item));
+    }
 
-  if (!input || typeof input !== "object") {
+    if (!value || typeof value !== "object") {
+      return value;
+    }
+
+    const source = value as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {};
+    const dottedEntries: Array<[string, unknown]> = [];
+
+    for (const [key, nestedValue] of Object.entries(source)) {
+      const normalizedValue = normalizeNode(nestedValue);
+
+      if (key.includes(".")) {
+        dottedEntries.push([key, normalizedValue]);
+        continue;
+      }
+
+      normalized[key] = normalizedValue;
+    }
+
+    for (const [flatKey, nestedValue] of dottedEntries) {
+      setNestedValue(normalized, flatKey.split("."), nestedValue);
+    }
+
+    return normalized;
+  };
+
+  if (!input) {
     return input;
   }
 
-  const source = input as Record<string, unknown>;
-  const normalized: Record<string, unknown> = {};
-  const dottedEntries: Array<[string, unknown]> = [];
-
-  for (const [key, value] of Object.entries(source)) {
-    const normalizedValue = normalizeMessageKeys(value);
-
-    if (key.includes(".")) {
-      dottedEntries.push([key, normalizedValue]);
-      continue;
-    }
-
-    normalized[key] = normalizedValue;
-  }
-
-  for (const [flatKey, value] of dottedEntries) {
-    setNestedValue(normalized, flatKey.split("."), value);
-  }
-
-  return normalized;
+  return normalizeNode(input) as AbstractIntlMessages;
 }
 
 export interface AppProvidersProps {
   children: React.ReactNode;
   session?: Session | null;
-  messages?: Record<string, unknown>;
+  messages?: AbstractIntlMessages;
   locale?: string;
 }
 

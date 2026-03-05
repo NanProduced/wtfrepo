@@ -13,35 +13,35 @@ export interface GitHubLanguage {
 
 export interface GitHubMetaBase {
   repoHtmlUrl: string;
-  ownerLogin: string;
-  ownerAvatarUrl: string;
+  ownerLogin: string | null;
+  ownerAvatarUrl: string | null;
   languages: GitHubLanguage[];
   stargazersCount: number;
-  pushedAt: string;
+  pushedAt: string | null;
   topics: string[];
-  metadataSyncedAt?: string;
+  metadataSyncedAt?: string | null;
 }
 
 export interface GitHubMetaFull extends GitHubMetaBase {
-  repoId: number;
+  repoId: number | null;
   owner: {
-    login: string;
-    id: string;
-    avatarUrl: string;
-    htmlUrl: string;
+    login: string | null;
+    id: string | null;
+    avatarUrl: string | null;
+    htmlUrl: string | null;
   };
-  description: string;
-  homepage?: string;
-  defaultBranch: string;
+  description: string | null;
+  homepage: string | null;
+  defaultBranch: string | null;
   license?: {
-    spdxId: string;
-    name: string;
-  };
-  visibility: string;
+    spdxId: string | null;
+    name: string | null;
+  } | null;
+  visibility: string | null;
   archived: boolean;
   fork: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | null;
+  updatedAt: string | null;
   forksCount: number;
   openIssuesCount: number;
 }
@@ -58,7 +58,14 @@ export interface SpecimenTag {
   dimensionKey: string;
   tagKey: string;
   name: string;
-  uiMeta?: Record<string, unknown>;
+  uiMeta?: SpecimenTagUiMeta;
+}
+
+export interface SpecimenTagUiMeta {
+  color?: string;
+  icon?: string;
+  tooltip?: string;
+  [key: string]: unknown;
 }
 
 export interface SpecimenBase {
@@ -86,7 +93,7 @@ export interface ArchiveLeaderboardItem extends SpecimenBase {
 export interface ArchiveLeaderboardResponse {
   metric: ArchiveLeaderboardMetric;
   items: ArchiveLeaderboardItem[];
-  nextCursor?: string;
+  nextCursor: string | null;
   hasMore: boolean;
   total: number;
 }
@@ -119,7 +126,7 @@ export interface ArchiveInsightsData {
 // Drawer Data
 export interface SpecimenDrawerData {
   specimen: SpecimenBase & { githubUrl: string };
-  githubMeta: GitHubMetaBase & { description: string };
+  githubMeta: GitHubMetaBase & { description: string | null };
   metrics: Omit<SpecimenMetrics, "delta24h" | "comments">;
   readmeExcerpt?: {
     excerptType: "FUNNY" | "SUMMARY" | "HIGHLIGHT";
@@ -144,7 +151,17 @@ export interface SpecimenDetailData {
   metrics: SpecimenMetrics;
   readme: {
     snapshotId: string;
-    excerpts: Array<{ excerptType: string; text: string }>;
+    excerpts: Array<{
+      excerptType: string;
+      text: string;
+      translatedTextZh?: string;
+      translationMeta?: {
+        source?: "MANUAL" | "LLM" | string;
+        translatedBy?: string;
+        translatedAt?: string;
+        [key: string]: unknown;
+      };
+    }>;
   };
   officialCommentary: {
     oneLiner: {
@@ -164,7 +181,7 @@ export interface SpecimenDetailData {
     priority?: number;
   }>;
   repoIdentity: {
-    owner: { githubLogin: string; githubUserId: string };
+    owner: { githubLogin: string; githubUserId: string } | null;
     contributors: Array<{ githubLogin: string; githubUserId: string }>;
   };
   tags: SpecimenTag[];
@@ -228,7 +245,7 @@ export interface SpecimenRepoIdentity {
 
 export interface SpecimenRepoIdentitiesResponse {
   specimenId: string;
-  owner: SpecimenRepoIdentity;
+  owner: SpecimenRepoIdentity | null;
   contributors: SpecimenRepoIdentity[];
   syncedAt: string;
 }

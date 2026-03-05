@@ -535,10 +535,12 @@ final class SpecimenApiSupport {
     }
   }
 
-  record DetailReadmeExcerptResponse(String excerptType, String text) {
+  record DetailReadmeExcerptResponse(
+      String excerptType, String text, String translatedTextZh, Object translationMeta) {
 
     static DetailReadmeExcerptResponse from(SpecimenModels.DetailReadmeExcerptResult value) {
-      return new DetailReadmeExcerptResponse(value.excerptType(), value.text());
+      return new DetailReadmeExcerptResponse(
+          value.excerptType(), value.text(), value.translatedTextZh(), value.translationMeta());
     }
   }
 

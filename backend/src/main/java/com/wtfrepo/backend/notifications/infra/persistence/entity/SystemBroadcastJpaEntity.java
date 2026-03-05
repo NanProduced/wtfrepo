@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
@@ -21,7 +22,13 @@ import lombok.Getter;
  */
 @Getter
 @Entity
-@Table(name = "system_broadcast")
+@Table(
+    name = "system_broadcast",
+    uniqueConstraints = {
+      @UniqueConstraint(
+          name = "uk_system_broadcast_uid",
+          columnNames = {"broadcast_uid"})
+    })
 public class SystemBroadcastJpaEntity {
 
   @Id

@@ -22,6 +22,12 @@ export function ArchiveCard({ specimen, eloRank, hypeRank }: ArchiveCardProps) {
   const { githubMeta, metrics, tags } = specimen;
   const locale = useLocale();
   const t = useTranslations("archive.card");
+  const [ownerPart, repoPart] = specimen.repoFullName.split("/");
+  const ownerLogin = githubMeta.ownerLogin || ownerPart || "unknown";
+  const ownerAvatarUrl =
+    githubMeta.ownerAvatarUrl ||
+    `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerLogin || specimen.specimenId)}`;
+  const repoName = repoPart || specimen.repoFullName;
 
   return (
     <SpotlightCard
@@ -51,17 +57,17 @@ export function ArchiveCard({ specimen, eloRank, hypeRank }: ArchiveCardProps) {
               {/* Pixelated Avatar Placeholder or Real Avatar */}
               <div className="w-5 h-5 border border-border bg-muted flex items-center justify-center overflow-hidden">
                  <img
-                    src={githubMeta.ownerAvatarUrl}
-                    alt={githubMeta.ownerLogin}
+                    src={ownerAvatarUrl}
+                    alt={ownerLogin}
                     className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100"
                   />
               </div>
               <span className="font-mono text-[10px] text-muted-foreground truncate tracking-wider">
-                {githubMeta.ownerLogin}
+                {ownerLogin}
               </span>
             </div>
             <h3 className="font-pixel text-sm md:text-base leading-tight text-foreground truncate">
-              {specimen.repoFullName.split('/')[1]}
+              {repoName}
             </h3>
           </Link>
 

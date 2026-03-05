@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "typecheck": "tsc --noEmit --incremental false",
+    "build:checked": "npm run typecheck && next build",
     "start": "next start",
     "lint:i18n": "node ./scripts/check-i18n.mjs",
     "lint": "eslint && npm run lint:i18n"

@@ -284,6 +284,13 @@
           "summary": "摘要",
           "highlight": "高光片段"
         },
+        "language_mode_label": "Readme 摘录语言",
+        "language_mode": {
+          "en": "原文",
+          "zh": "中文"
+        },
+        "translation_notice": "以下中文摘录由平台整理或翻译，非 GitHub 原生 README。",
+        "translation_fallback_note": "当前暂无中文译文，已回退展示原文。",
         "empty": "暂未整理 Readme 摘录。"
       },
       "code": {

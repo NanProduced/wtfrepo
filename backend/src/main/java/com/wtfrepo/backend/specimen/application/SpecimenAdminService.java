@@ -53,6 +53,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -471,11 +472,23 @@ public class SpecimenAdminService {
                         specimenId,
                         excerpt.excerptType(),
                         excerpt.text(),
+                        excerpt.translatedTextZh(),
+                        toJsonOrNull(excerpt.translationMeta()),
                         excerpt.candidateId(),
                         excerpt.resolvedPriority(),
                         adminUserId))
             .toList();
     specimenReadmeExcerptJpaRepository.saveAll(entities);
+  }
+
+  private String toJsonOrNull(Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Map<?, ?> map && map.isEmpty()) {
+      return null;
+    }
+    return specimenJsonCodec.write(value);
   }
 
   private void upsertOfficialCommentary(String specimenId, String adminUserId, SubmitCommand submitCommand) {

@@ -29,6 +29,10 @@ app:
   admin:
     bootstrap:
       email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    oauth:
+      code-expiration: ${ADMIN_OAUTH_CODE_EXPIRATION:5m}
+      allowed-redirect-uris:
+        - ${ADMIN_OAUTH_REDIRECT_URI_1:http://localhost:3001/auth/callback}
   shared:
     outbox:
       # Relay is enabled by default for cross-module integration.

@@ -47,6 +47,8 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(HttpMethod.POST, "/api/v1/auth/exchange")
                     .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/admin/platform/oauth/token")
+                    .permitAll()
                     .requestMatchers("/actuator/health")
                     .permitAll()
                     .requestMatchers("/api/v1/me/**")

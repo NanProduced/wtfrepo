@@ -27,6 +27,12 @@ public class SpecimenReadmeExcerptJpaEntity {
   @Column(name = "text", nullable = false, columnDefinition = "text")
   private String text;
 
+  @Column(name = "translated_text_zh", columnDefinition = "text")
+  private String translatedTextZh;
+
+  @Column(name = "translation_meta_json", columnDefinition = "text")
+  private String translationMetaJson;
+
   @Column(name = "candidate_id", length = 64)
   private String candidateId;
 
@@ -45,6 +51,8 @@ public class SpecimenReadmeExcerptJpaEntity {
       String specimenId,
       String excerptType,
       String text,
+      String translatedTextZh,
+      String translationMetaJson,
       String candidateId,
       int priority,
       String curatedBy) {
@@ -53,6 +61,8 @@ public class SpecimenReadmeExcerptJpaEntity {
     entity.specimenId = specimenId;
     entity.excerptType = excerptType;
     entity.text = text;
+    entity.translatedTextZh = translatedTextZh;
+    entity.translationMetaJson = translationMetaJson;
     entity.candidateId = candidateId;
     entity.priority = priority;
     entity.curatedBy = curatedBy;

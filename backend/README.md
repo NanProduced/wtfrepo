@@ -25,19 +25,39 @@ WTF-Repo 后端服务，提供核心业务 API、排行榜计算、Bug 经济、
   - 签发后端 Access Token (JWT)
   - 后端仅信任自己签发的 Token
 
-## 本地开发 (占位)
+## 本地开发
+
+1. 启动本地中间件（PostgreSQL + Redis）：
+
+```bash
+docker compose -f backend/docker-compose.local.yml up -d
+```
+
+2. 启动后端（默认 profile）：
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-> 运行前需准备 PostgreSQL / Redis，配置将通过环境变量或 `application-*.yml` 完成。
-
-### M03 收口联调（Outbox + Settlement）
+3. 如需 M03 收口联调（Outbox + Settlement）：
 
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=m03-closeout
 ```
+
+默认配置来自 `application.yaml`，关键本地变量如下（均有默认值）：
+
+- `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`
+- `REDIS_HOST` / `REDIS_PORT`
+- `ADMIN_OAUTH_REDIRECT_URI_1`（默认 `http://localhost:3001/auth/callback`）
+
+建议启动前先做一次编译体检：
+
+```bash
+./mvnw -DskipTests compile
+```
+
+### M03 收口联调（Outbox + Settlement）
 
 - 使用 `application-m03-closeout.yaml` 打开 `Outbox(JPA/Relay/Consumer)` 与 `Betting Settlement` 调度开关。
 - 默认仍以 `application.yaml` 为主，收口 profile 仅用于联调与冒烟验证。

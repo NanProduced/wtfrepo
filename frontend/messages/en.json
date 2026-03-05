@@ -284,6 +284,13 @@
           "summary": "Summary",
           "highlight": "Highlight"
         },
+        "language_mode_label": "Readme excerpt language",
+        "language_mode": {
+          "en": "Original",
+          "zh": "Chinese"
+        },
+        "translation_notice": "Chinese excerpts are curated or translated by the platform, not native GitHub README content.",
+        "translation_fallback_note": "Chinese translation is not available yet, showing original text.",
         "empty": "No curated readme excerpt is available yet."
       },
       "code": {

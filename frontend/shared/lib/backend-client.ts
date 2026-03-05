@@ -969,7 +969,16 @@ function getMockDataForPath(path: string, method?: string, body?: BodyInit | nul
       readme: {
         snapshotId: "snap_mock",
         excerpts: [
-          { excerptType: "FUNNY", text: "This project was built during a 48-hour insomnia marathon." },
+          {
+            excerptType: "FUNNY",
+            text: "This project was built during a 48-hour insomnia marathon.",
+            translatedTextZh: "这个项目诞生于 48 小时失眠冲刺。",
+            translationMeta: {
+              source: "MANUAL",
+              translatedBy: "u_admin",
+              translatedAt: new Date().toISOString(),
+            },
+          },
           { excerptType: "SUMMARY", text: "A tiny idea escalated into a chaotic utility ecosystem." },
         ],
       },

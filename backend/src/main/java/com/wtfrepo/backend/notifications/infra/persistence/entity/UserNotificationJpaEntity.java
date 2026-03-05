@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
@@ -25,7 +26,10 @@ import lombok.Getter;
 @Table(
     name = "user_notification",
     uniqueConstraints = {
-      @jakarta.persistence.UniqueConstraint(
+      @UniqueConstraint(
+          name = "uk_user_notification_uid",
+          columnNames = {"notification_uid"}),
+      @UniqueConstraint(
           name = "uk_notification_dedupe",
           columnNames = {"receiver_user_id", "type", "dedupe_key"})
     })

@@ -37,14 +37,19 @@ import com.wtfrepo.backend.shared.idempotency.IdempotencyConflictException;
 import com.wtfrepo.backend.shared.security.IssuedToken;
 import com.wtfrepo.backend.shared.security.TokenService;
 import com.wtfrepo.backend.shared.security.TokenBlacklistStore;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +77,7 @@ public class AdminPlatformService {
   private final AdminRequestFingerprintCalculator requestFingerprintCalculator;
   private final IdempotentOperationExecutor idempotentExecutor;
   private final AdminPlatformProperties properties;
+  private final Map<String, OAuthAuthorizationCode> oauthCodeStore = new ConcurrentHashMap<>();
 
   public AdminPlatformService(
       AdminRoleStore adminRoleStore,
@@ -217,6 +223,93 @@ public class AdminPlatformService {
     } catch (IdempotencyConflictException ex) {
       throw AdminExceptions.conflict(AdminConstants.Message.IDEMPOTENCY_CONFLICT);
     }
+  }
+
+  public OAuthAuthorizeResult issueOAuthAuthorizationCode(
+      String requestId,
+      String idempotencyKey,
+      String userId,
+      String redirectUri,
+      String state,
+      String ipAddress,
+      String userAgent) {
+    String resolvedIdempotencyKey = resolveIdempotencyKey(requestId, idempotencyKey);
+    validateIdempotencyKey(resolvedIdempotencyKey);
+
+    String normalizedRedirectUri = normalizeAndValidateRedirectUri(redirectUri);
+    String normalizedState = normalizeAndValidateOAuthState(state);
+    AuthUserRecord userRecord = loadUser(userId);
+    List<AdminRoleRecord> roles = adminRoleStore.findActiveRoles(userId);
+    if (roles.isEmpty()) {
+      throw AdminExceptions.forbidden(AdminConstants.Message.ADMIN_ROLE_REQUIRED);
+    }
+
+    String requestFingerprint =
+        requestFingerprintCalculator.fingerprint(
+            "oauth_authorize|" + userId + "|" + normalizedRedirectUri + "|" + normalizedState);
+
+    try {
+      return idempotentExecutor
+          .execute(
+              "admin:oauth:authorize:" + userId,
+              resolvedIdempotencyKey,
+              requestFingerprint,
+              () -> {
+                cleanupExpiredOAuthCodes();
+                Instant now = Instant.now();
+                Instant expiresAt = now.plus(properties.getOauth().getCodeExpiration());
+                String code = issueAuthorizationCode();
+                oauthCodeStore.put(
+                    code,
+                    new OAuthAuthorizationCode(
+                        code, userId, normalizedRedirectUri, normalizedState, expiresAt, null));
+                appendAuditLog(
+                    userId,
+                    AdminAuditActions.ADMIN_OAUTH_AUTHORIZE,
+                    AdminAuditTargetType.USER,
+                    userId,
+                    null,
+                    null,
+                    new OAuthAuthorizeAuditMeta(normalizedRedirectUri, expiresAt),
+                    requestId,
+                    ipAddress,
+                    userAgent);
+                return new OAuthAuthorizeResult(
+                    code,
+                    expiresAt,
+                    normalizedRedirectUri,
+                    normalizedState,
+                    userRecord.userId(),
+                    userRecord.username(),
+                    roleRecordListToNames(roles));
+              })
+          .response();
+    } catch (IdempotencyConflictException ex) {
+      throw AdminExceptions.conflict(AdminConstants.Message.IDEMPOTENCY_CONFLICT);
+    }
+  }
+
+  public AdminAuthResult exchangeOAuthAuthorizationCode(
+      String requestId,
+      String idempotencyKey,
+      String code,
+      String redirectUri,
+      String state,
+      String ipAddress,
+      String userAgent) {
+    String normalizedCode = normalizeAndValidateAuthorizationCode(code);
+    String normalizedRedirectUri = normalizeAndValidateRedirectUri(redirectUri);
+    String normalizedState = normalizeAndValidateOAuthState(state);
+
+    OAuthAuthorizationCode consumed =
+        consumeAuthorizationCode(normalizedCode, normalizedRedirectUri, normalizedState)
+            .orElseThrow(
+                () ->
+                    AdminExceptions.forbidden(
+                        AdminConstants.Message.INVALID_OR_EXPIRED_AUTHORIZATION_CODE));
+
+    return login(
+        requestId, idempotencyKey, consumed.userId(), ipAddress, userAgent);
   }
 
   public AdminLogoutResult logout(
@@ -754,6 +847,133 @@ public class AdminPlatformService {
         pageResult.totalPages());
   }
 
+  private String normalizeAndValidateAuthorizationCode(String code) {
+    if (!StringUtils.hasText(code)) {
+      throw AdminExceptions.validation(AdminConstants.Message.INVALID_OR_EXPIRED_AUTHORIZATION_CODE);
+    }
+    String normalized = code.trim();
+    if (normalized.length() > 256) {
+      throw AdminExceptions.validation(AdminConstants.Message.INVALID_OR_EXPIRED_AUTHORIZATION_CODE);
+    }
+    return normalized;
+  }
+
+  private String normalizeAndValidateOAuthState(String state) {
+    if (!StringUtils.hasText(state)) {
+      throw AdminExceptions.validation(AdminConstants.Message.INVALID_OAUTH_STATE);
+    }
+    String normalized = state.trim();
+    if (normalized.length() > 256) {
+      throw AdminExceptions.validation(AdminConstants.Message.INVALID_OAUTH_STATE);
+    }
+    return normalized;
+  }
+
+  private String normalizeAndValidateRedirectUri(String redirectUri) {
+    if (!StringUtils.hasText(redirectUri)) {
+      throw AdminExceptions.validation(AdminConstants.Message.INVALID_REDIRECT_URI);
+    }
+    String normalized = normalizeUri(redirectUri);
+    if (!StringUtils.hasText(normalized) || !isAllowedRedirectUri(normalized)) {
+      throw AdminExceptions.forbidden(AdminConstants.Message.INVALID_REDIRECT_URI);
+    }
+    return normalized;
+  }
+
+  private boolean isAllowedRedirectUri(String redirectUri) {
+    List<String> allowedRedirectUris = properties.getOauth().getAllowedRedirectUris();
+    if (allowedRedirectUris == null || allowedRedirectUris.isEmpty()) {
+      return false;
+    }
+    for (String allowed : allowedRedirectUris) {
+      String normalizedAllowed = normalizeUri(allowed);
+      if (redirectUri.equals(normalizedAllowed)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private String normalizeUri(String rawUri) {
+    if (!StringUtils.hasText(rawUri)) {
+      return null;
+    }
+    try {
+      URI uri = new URI(rawUri.trim());
+      String scheme = uri.getScheme();
+      String host = uri.getHost();
+      if (!StringUtils.hasText(scheme) || !StringUtils.hasText(host)) {
+        return null;
+      }
+      String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
+      if (!"http".equals(normalizedScheme) && !"https".equals(normalizedScheme)) {
+        return null;
+      }
+      String path = StringUtils.hasText(uri.getPath()) ? uri.getPath() : "/";
+      if (path.length() > 1 && path.endsWith("/")) {
+        path = path.substring(0, path.length() - 1);
+      }
+      URI normalized =
+          new URI(
+              normalizedScheme,
+              null,
+              host.toLowerCase(Locale.ROOT),
+              uri.getPort(),
+              path,
+              null,
+              null);
+      return normalized.toString();
+    } catch (URISyntaxException ex) {
+      return null;
+    }
+  }
+
+  private String issueAuthorizationCode() {
+    return "aoc_" + UUID.randomUUID().toString().replace("-", "");
+  }
+
+  private void cleanupExpiredOAuthCodes() {
+    Instant now = Instant.now();
+    oauthCodeStore
+        .entrySet()
+        .removeIf(
+            entry -> {
+              OAuthAuthorizationCode value = entry.getValue();
+              if (value == null) {
+                return true;
+              }
+              if (value.expiresAt().isBefore(now)) {
+                return true;
+              }
+              return value.consumedAt() != null
+                  && value.consumedAt().isBefore(now.minus(Duration.ofMinutes(30)));
+            });
+  }
+
+  private Optional<OAuthAuthorizationCode> consumeAuthorizationCode(
+      String code, String redirectUri, String state) {
+    cleanupExpiredOAuthCodes();
+    Instant now = Instant.now();
+    OAuthAuthorizationCode[] consumedHolder = new OAuthAuthorizationCode[1];
+    oauthCodeStore.computeIfPresent(
+        code,
+        (key, current) -> {
+          if (current.consumedAt() != null) {
+            return current;
+          }
+          if (current.expiresAt().isBefore(now)) {
+            return current;
+          }
+          if (!redirectUri.equals(current.redirectUri()) || !state.equals(current.state())) {
+            return current;
+          }
+          OAuthAuthorizationCode consumed = current.consume(now);
+          consumedHolder[0] = consumed;
+          return consumed;
+        });
+    return Optional.ofNullable(consumedHolder[0]);
+  }
+
   private void verifyBootstrapEmail(String email) {
     String expected = properties.getBootstrap().getEmail();
     if (!StringUtils.hasText(expected)) {
@@ -1030,6 +1250,30 @@ public class AdminPlatformService {
   private record SafetyTicketAuditMeta(String status, String resolution) {}
 
   private record BanAuditMeta(String banType, String reason, Instant expiresAt) {}
+
+  private record OAuthAuthorizeAuditMeta(String redirectUri, Instant expiresAt) {}
+
+  private record OAuthAuthorizationCode(
+      String code,
+      String userId,
+      String redirectUri,
+      String state,
+      Instant expiresAt,
+      Instant consumedAt) {
+    OAuthAuthorizationCode consume(Instant consumedAt) {
+      return new OAuthAuthorizationCode(
+          code, userId, redirectUri, state, expiresAt, consumedAt);
+    }
+  }
+
+  public record OAuthAuthorizeResult(
+      String code,
+      Instant expiresAt,
+      String redirectUri,
+      String state,
+      String userId,
+      String username,
+      List<String> roles) {}
 
   private record LogoutAuditMeta(String tokenId) {}
 

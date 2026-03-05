@@ -73,6 +73,14 @@ export function SpecimenDrawer({
     setShowWarning(false);
   };
 
+  const ownerLogin = data?.githubMeta.ownerLogin || data?.specimen.repoFullName.split("/")[0] || "unknown";
+  const ownerAvatarUrl =
+    data?.githubMeta.ownerAvatarUrl ||
+    (data
+      ? `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerLogin || data.specimen.specimenId)}`
+      : "");
+  const repoName = data?.specimen.repoFullName.split("/")[1] || data?.specimen.repoFullName || "";
+
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -114,15 +122,15 @@ export function SpecimenDrawer({
                    <div className="w-20 h-20 mx-auto bg-black border-2 border-white/20 p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={data.githubMeta.ownerAvatarUrl}
-                        alt={data.githubMeta.ownerLogin}
+                        src={ownerAvatarUrl}
+                        alt={ownerLogin}
                         className="w-full h-full grayscale contrast-125"
                       />
                    </div>
                    <div>
-                     <p className="text-[10px] text-primary tracking-widest mb-1">{data.githubMeta.ownerLogin}</p>
+                     <p className="text-[10px] text-primary tracking-widest mb-1">{ownerLogin}</p>
                      <h2 className="font-pixel text-xl text-white">
-                       {data.specimen.repoFullName.split('/')[1]}
+                       {repoName}
                      </h2>
                    </div>
                 </div>

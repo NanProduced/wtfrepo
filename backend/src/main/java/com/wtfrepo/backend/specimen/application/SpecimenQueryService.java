@@ -479,7 +479,13 @@ public class SpecimenQueryService {
         new DetailReadmeResult(
             null,
             excerpts.stream()
-                .map(value -> new DetailReadmeExcerptResult(value.getExcerptType(), value.getText()))
+                .map(
+                    value ->
+                        new DetailReadmeExcerptResult(
+                            value.getExcerptType(),
+                            value.getText(),
+                            value.getTranslatedTextZh(),
+                            readJsonObjectOrNull(value.getTranslationMetaJson())))
                 .toList()),
         toDetailOfficialCommentary(commentary),
         highlights.stream()
@@ -723,6 +729,13 @@ public class SpecimenQueryService {
       }
     }
     return results;
+  }
+
+  private Object readJsonObjectOrNull(String json) {
+    if (!StringUtils.hasText(json)) {
+      return null;
+    }
+    return specimenJsonCodec.readObject(json);
   }
 
   private String resolveOneLiner(SpecimenOfficialCommentaryJpaEntity commentary, String locale) {

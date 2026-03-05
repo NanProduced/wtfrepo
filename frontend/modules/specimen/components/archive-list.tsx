@@ -28,7 +28,7 @@ const LEADERBOARD_PAGE_SIZE = 10;
 interface LeaderboardState {
   items: ArchiveLeaderboardItem[];
   hasMore: boolean;
-  nextCursor?: string;
+  nextCursor: string | null;
   isLoading: boolean;
 }
 
@@ -36,13 +36,13 @@ const EMPTY_LEADERBOARD_STATE: Record<ArchiveLeaderboardMetric, LeaderboardState
   ELO: {
     items: [],
     hasMore: false,
-    nextCursor: undefined,
+    nextCursor: null,
     isLoading: false,
   },
   HYPE: {
     items: [],
     hasMore: false,
-    nextCursor: undefined,
+    nextCursor: null,
     isLoading: false,
   },
 };
@@ -60,7 +60,7 @@ export function ArchiveList() {
   const [leaderboards, setLeaderboards] = useState<Record<ArchiveLeaderboardMetric, LeaderboardState>>(
     EMPTY_LEADERBOARD_STATE
   );
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [sort, setSort] = useState<"HOT" | "NEW" | "INSANE">("HOT");
@@ -213,7 +213,7 @@ export function ArchiveList() {
       setIsLoading(true);
       try {
         const result = await getArchiveSpecimens({
-          cursor: isInitial ? undefined : cursor,
+          cursor: isInitial ? undefined : (cursor ?? undefined),
           sort,
           q: query || undefined,
           tags: selectedTagKeys,
@@ -262,7 +262,7 @@ export function ArchiveList() {
       metric: ArchiveLeaderboardMetric,
       options: {
         append?: boolean;
-        cursor?: string;
+        cursor?: string | null;
       } = {}
     ) => {
       const append = options.append ?? false;
@@ -277,7 +277,7 @@ export function ArchiveList() {
       try {
         const result = await getArchiveLeaderboard({
           metric,
-          cursor: append ? options.cursor : undefined,
+          cursor: append ? (options.cursor ?? undefined) : undefined,
           limit: LEADERBOARD_PAGE_SIZE,
         });
 

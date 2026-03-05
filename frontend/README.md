@@ -23,15 +23,35 @@ npm install
 npm run dev
 ```
 
-## 环境变量 (占位)
+## 环境变量
 
-- `NEXTAUTH_URL`
-- `NEXTAUTH_SECRET`
-- `GITHUB_CLIENT_ID`
-- `GITHUB_CLIENT_SECRET`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `BACKEND_BASE_URL`
+`frontend` 当前使用 NextAuth v5 的 `AUTH_*` 命名，建议至少配置以下变量：
+
+- `AUTH_URL`：前端站点地址（本地通常是 `http://localhost:3000`）
+- `AUTH_SECRET`：NextAuth 会话签名密钥
+- `AUTH_GITHUB_ID`
+- `AUTH_GITHUB_SECRET`
+- `AUTH_GOOGLE_ID`
+- `AUTH_GOOGLE_SECRET`
+- `API_URL`：后端 API 基地址（本地通常是 `http://localhost:8080/api/v1`）
+
+可选变量：
+
+- `NEXT_PUBLIC_WS_URL`：SSE/流地址，默认 `"/api/stream"`（经由 BFF 代理）
+- `AUTH_IDENTITY_PROOF_ISSUER`
+- `AUTH_IDENTITY_PROOF_AUDIENCE`
+- `AUTH_IDENTITY_PROOF_SECRET`
+- `AUTH_IDENTITY_PROOF_TTL_SECONDS`
+- `AUTH_ENABLE_EXCHANGE_MOCK_FALLBACK`（默认关闭）
+- `BFF_ENABLE_MOCK_FALLBACK`（默认关闭）
+
+联调前建议执行：
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
 
 ## 文档与需求
 

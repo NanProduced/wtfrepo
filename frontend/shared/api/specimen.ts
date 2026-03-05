@@ -35,7 +35,7 @@ export async function getArchiveSpecimens(params: {
 
   const res = await fetch(`/api/archive/specimens?${searchParams.toString()}`);
   if (!res.ok) throw await res.json();
-  return res.json() as Promise<{ items: ArchiveSpecimen[]; nextCursor: string; hasMore: boolean }>;
+  return res.json() as Promise<{ items: ArchiveSpecimen[]; nextCursor: string | null; hasMore: boolean }>;
 }
 
 export async function getArchiveInsights() {
@@ -91,7 +91,7 @@ export async function getWatchlist(params: { cursor?: string; limit?: number; so
 
   const res = await fetch(`/api/watchlist/items?${searchParams.toString()}`);
   if (!res.ok) throw await res.json();
-  return res.json() as Promise<{ items: WatchlistItem[]; nextCursor: string; hasMore: boolean }>;
+  return res.json() as Promise<{ items: WatchlistItem[]; nextCursor: string | null; hasMore: boolean }>;
 }
 
 export async function addToWatchlist(specimenId: string, source: string = "DETAIL") {

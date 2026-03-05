@@ -21,6 +21,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -317,10 +318,13 @@ public class SpecimenAdminController {
       @NotBlank String excerptType,
       String candidateId,
       @NotBlank String text,
+      String translatedTextZh,
+      Map<String, Object> translationMeta,
       Integer priority) {
 
     SpecimenModels.ReadmeExcerptInput toModel() {
-      return new SpecimenModels.ReadmeExcerptInput(excerptType, candidateId, text, priority);
+      return new SpecimenModels.ReadmeExcerptInput(
+          excerptType, candidateId, text, translatedTextZh, translationMeta, priority);
     }
   }
 

@@ -229,14 +229,15 @@ export const useNarratorStore = create<NarratorState>((set) => ({
       };
 
       const hasActive = state.isVisible && state.activeEntry !== null;
+      const activeEntry = state.activeEntry;
 
-      if (!hasActive) {
+      if (!hasActive || !activeEntry) {
         return applyActiveEvent(state, incoming, prunedQueue, cooldownUntilByKey);
       }
 
-      if (canPreempt(incoming, state.activeEntry)) {
-        const queueWithPreempted = state.activeEntry.expiresAt > now
-          ? sortQueueByPriority([...prunedQueue, state.activeEntry])
+      if (canPreempt(incoming, activeEntry)) {
+        const queueWithPreempted = activeEntry.expiresAt > now
+          ? sortQueueByPriority([...prunedQueue, activeEntry])
           : prunedQueue;
 
         return applyActiveEvent(state, incoming, queueWithPreempted, cooldownUntilByKey);
@@ -299,7 +300,8 @@ export const useNarratorStore = create<NarratorState>((set) => ({
         };
       }
 
-      const [nextActive, ...restQueue] = prunedQueue;
+      const nextActive = prunedQueue[0]!;
+      const restQueue = prunedQueue.slice(1);
 
       return {
         ...state,
